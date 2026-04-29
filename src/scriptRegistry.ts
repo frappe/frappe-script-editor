@@ -14,7 +14,7 @@ import type {
   ScriptReference,
   ScriptTreeItemData,
 } from "./types";
-import { getFileExtension, sanitizeName } from "./utils";
+import { sanitizeName } from "./utils";
 
 /** Custom URI scheme for virtual script files. */
 export const SCHEME = "frappe-builder";
@@ -56,6 +56,22 @@ export class ScriptRegistry {
     this.contentCache.set(uri.toString(), content);
   }
 
+  getAllReferences(): Iterable<[string, ScriptReference]> {
+    return this.registry.entries();
+  }
+
+  getCachedContentByUriString(uriString: string): string | undefined {
+    return this.contentCache.get(uriString);
+  }
+
+  setCachedContentSync(uriString: string, content: string): void {
+    this.contentCache.set(uriString, content);
+  }
+
+  isVirtualUri(uri: vscode.Uri): boolean {
+    return uri.scheme === SCHEME;
+  }
+
   invalidateCache(uri: vscode.Uri): void {
     this.contentCache.delete(uri.toString());
   }
@@ -89,11 +105,11 @@ export class ScriptRegistry {
           } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : String(err);
             vscode.window.showWarningMessage(
-              `Failed to load scripts from "${site.name}": ${msg}`
+              `Failed to load scripts from "${site.name}": ${msg}`,
             );
           }
         }
-      }
+      },
     );
 
     this._onDidChange.fire();
@@ -106,7 +122,7 @@ export class ScriptRegistry {
     siteId: string,
     siteName: string,
     siteUrl: string,
-    client: FrappeClient
+    client: FrappeClient,
   ): Promise<void> {
     const siteNode: ScriptTreeItemData = {
       type: "site",
@@ -140,9 +156,7 @@ export class ScriptRegistry {
 
       for (const sf of settingsFields) {
         const displayPath = `_settings/${sf.displayName}${sf.ext}`;
-        const uri = vscode.Uri.parse(
-          `${SCHEME}:///${siteId}/${displayPath}`
-        );
+        const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
         const ref: ScriptReference = {
           siteId,
@@ -177,7 +191,7 @@ export class ScriptRegistry {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       vscode.window.showWarningMessage(
-        `Failed to load Builder Settings for "${siteName}": ${msg}`
+        `Failed to load Builder Settings for "${siteName}": ${msg}`,
       );
     }
 
@@ -193,14 +207,14 @@ export class ScriptRegistry {
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           vscode.window.showWarningMessage(
-            `Failed to load page "${pageSummary.page_name}": ${msg}`
+            `Failed to load page "${pageSummary.page_name}": ${msg}`,
           );
         }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       vscode.window.showWarningMessage(
-        `Failed to list pages for "${siteName}": ${msg}`
+        `Failed to list pages for "${siteName}": ${msg}`,
       );
     }
 
@@ -212,7 +226,7 @@ export class ScriptRegistry {
   private async buildPageNode(
     siteId: string,
     doc: FrappePageDoc,
-    client: FrappeClient
+    client: FrappeClient,
   ): Promise<ScriptTreeItemData> {
     const pageName = sanitizeName(doc.page_name || doc.name);
     const pageLabel = doc.page_title || doc.page_name || doc.name;
@@ -242,9 +256,7 @@ export class ScriptRegistry {
           const ext = csDoc.script_type === "CSS" ? ".css" : ".js";
           const csName = sanitizeName(csDoc.name);
           const displayPath = `${pageName}/client scripts/${csName}${ext}`;
-          const uri = vscode.Uri.parse(
-            `${SCHEME}:///${siteId}/${displayPath}`
-          );
+          const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
           const ref: ScriptReference = {
             siteId,
@@ -271,7 +283,7 @@ export class ScriptRegistry {
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           vscode.window.showWarningMessage(
-            `Failed to load client script "${csRow.builder_script}": ${msg}`
+            `Failed to load client script "${csRow.builder_script}": ${msg}`,
           );
         }
       }
@@ -317,7 +329,7 @@ export class ScriptRegistry {
           siteId,
           doc.name,
           pageName,
-          blocks
+          blocks,
         );
 
         if (blockScriptNodes.length > 0) {
@@ -377,7 +389,7 @@ export class ScriptRegistry {
     docname: string,
     pageName: string,
     blocks: BlockNode[],
-    parentPath: string = ""
+    parentPath: string = "",
   ): ScriptTreeItemData[] {
     const nodes: ScriptTreeItemData[] = [];
 
@@ -388,8 +400,7 @@ export class ScriptRegistry {
       const hasDataScript = !!block.blockDataScript;
 
       if (hasClientScript || hasDataScript) {
-        const blockLabel =
-          block.blockName || block.blockId || "unnamed-block";
+        const blockLabel = block.blockName || block.blockId || "unnamed-block";
         const blockPath = parentPath
           ? `${parentPath}/${sanitizeName(blockLabel)}`
           : sanitizeName(blockLabel);
@@ -404,9 +415,7 @@ export class ScriptRegistry {
 
         if (hasClientScript && block.blockId) {
           const displayPath = `${pageName}/page blocks/${blockPath}/client script.js`;
-          const uri = vscode.Uri.parse(
-            `${SCHEME}:///${siteId}/${displayPath}`
-          );
+          const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
           const ref: ScriptReference = {
             siteId,
@@ -422,10 +431,7 @@ export class ScriptRegistry {
           };
 
           this.registry.set(uri.toString(), ref);
-          this.contentCache.set(
-            uri.toString(),
-            block.blockClientScript || ""
-          );
+          this.contentCache.set(uri.toString(), block.blockClientScript || "");
 
           blockFolder.children!.push({
             type: "scriptFile",
@@ -438,9 +444,7 @@ export class ScriptRegistry {
 
         if (hasDataScript && block.blockId) {
           const displayPath = `${pageName}/page blocks/${blockPath}/data script.py`;
-          const uri = vscode.Uri.parse(
-            `${SCHEME}:///${siteId}/${displayPath}`
-          );
+          const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
           const ref: ScriptReference = {
             siteId,
@@ -473,9 +477,9 @@ export class ScriptRegistry {
       // Recurse into children
       if (block.children && block.children.length > 0) {
         const childPath = block.blockName
-          ? (parentPath
-              ? `${parentPath}/${sanitizeName(block.blockName)}`
-              : sanitizeName(block.blockName))
+          ? parentPath
+            ? `${parentPath}/${sanitizeName(block.blockName)}`
+            : sanitizeName(block.blockName)
           : parentPath;
 
         const childNodes = this.extractBlockScripts(
@@ -483,7 +487,7 @@ export class ScriptRegistry {
           docname,
           pageName,
           block.children,
-          childPath
+          childPath,
         );
         nodes.push(...childNodes);
       }
@@ -517,7 +521,7 @@ export class ScriptRegistry {
     docname: string,
     field?: string,
     blockId?: string,
-    blockField?: string
+    blockField?: string,
   ): { uri: vscode.Uri; ref: ScriptReference } | undefined {
     for (const [uriStr, ref] of this.registry.entries()) {
       const site = this.siteManager.getSites().find((s) => s.id === ref.siteId);

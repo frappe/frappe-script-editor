@@ -8,23 +8,27 @@
 import * as vscode from "vscode";
 import type { ScriptRegistry } from "./scriptRegistry";
 import type { ScriptTreeItemData } from "./types";
+import type { TempScriptManager } from "./tempScriptManager";
 
-export class ScriptTreeProvider
-  implements vscode.TreeDataProvider<ScriptTreeItemData>
-{
-  private _onDidChangeTreeData =
-    new vscode.EventEmitter<ScriptTreeItemData | undefined | void>();
+export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeItemData> {
+  private _onDidChangeTreeData = new vscode.EventEmitter<
+    ScriptTreeItemData | undefined | void
+  >();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   private registry: ScriptRegistry;
+  private tempManager: TempScriptManager | null = null;
 
   constructor(registry: ScriptRegistry) {
     this.registry = registry;
 
-    // Refresh tree when registry data changes
     this.registry.onDidChange(() => {
       this._onDidChangeTreeData.fire();
     });
+  }
+
+  setTempManager(tempManager: TempScriptManager): void {
+    this.tempManager = tempManager;
   }
 
   refresh(): void {
@@ -41,7 +45,7 @@ export class ScriptTreeProvider
         ? element.type === "site"
           ? vscode.TreeItemCollapsibleState.Expanded
           : vscode.TreeItemCollapsibleState.Collapsed
-        : vscode.TreeItemCollapsibleState.None
+        : vscode.TreeItemCollapsibleState.None,
     );
 
     // Set context value for context menus
@@ -79,21 +83,38 @@ export class ScriptTreeProvider
       treeItem.tooltip = element.tooltip;
     }
 
-    // For script files, clicking opens the file
+    // For script files, clicking opens the temp file if available
     if (element.type === "scriptFile" && element.uri) {
-      treeItem.command = {
-        command: "vscode.open",
-        title: "Open Script",
-        arguments: [element.uri],
-      };
-      treeItem.resourceUri = element.uri;
+      const ref = this.registry.getReference(element.uri);
+      let openUri: vscode.Uri | undefined = element.uri;
+
+      if (this.tempManager && ref) {
+        const cached = this.registry.getCachedContent(element.uri);
+        if (cached !== undefined) {
+          this.tempManager.exportScriptSync(element.uri, ref, cached);
+          const tempPath = this.tempManager.getTempPath(
+            ref.siteId,
+            ref.displayPath,
+          );
+          openUri = vscode.Uri.file(tempPath);
+        }
+      }
+
+      if (openUri) {
+        treeItem.command = {
+          command: "vscode.open",
+          title: "Open Script",
+          arguments: [openUri],
+        };
+        treeItem.resourceUri = openUri;
+      }
     }
 
     return treeItem;
   }
 
   getChildren(
-    element?: ScriptTreeItemData
+    element?: ScriptTreeItemData,
   ): vscode.ProviderResult<ScriptTreeItemData[]> {
     if (!element) {
       // Root level: return site nodes

@@ -9,18 +9,21 @@
  */
 
 import * as vscode from "vscode";
+import * as fs from "fs";
 import { HttpServer } from "./httpServer";
 import { ScriptFileSystem } from "./scriptFileSystem";
 import { ScriptRegistry, SCHEME } from "./scriptRegistry";
 import { SiteManager } from "./siteManager";
 import { SiteViewProvider } from "./siteViewProvider";
 import { ScriptTreeProvider } from "./treeProvider";
+import { TempScriptManager } from "./tempScriptManager";
 
 let httpServer: HttpServer | null = null;
+let tempScriptManager: TempScriptManager | null = null;
 
 export function activate(context: vscode.ExtensionContext): void {
   const outputChannel = vscode.window.createOutputChannel(
-    "Frappe Script Editor"
+    "Frappe Script Editor",
   );
   outputChannel.appendLine("Frappe Script Editor activated.");
 
@@ -31,27 +34,100 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // ── FileSystem Provider ─────────────────────────────────────────────────
 
-  const fileSystem = new ScriptFileSystem(
-    siteManager,
-    registry,
-    outputChannel
-  );
+  const fileSystem = new ScriptFileSystem(siteManager, registry, outputChannel);
 
   context.subscriptions.push(
     vscode.workspace.registerFileSystemProvider(SCHEME, fileSystem, {
       isCaseSensitive: true,
       isReadonly: false,
-    })
+    }),
+  );
+
+  // ── Temp Script Manager ─────────────────────────────
+
+  tempScriptManager = new TempScriptManager();
+  tempScriptManager.ensureTempDir();
+
+  // ── Auto-save temp files on document open ─────────────────────────────────────────
+
+  context.subscriptions.push(
+    vscode.workspace.onDidOpenTextDocument(async (doc) => {
+      if (doc.uri.scheme !== SCHEME) return;
+      if (!tempScriptManager) return;
+
+      const ref = registry.getReference(doc.uri);
+      if (!ref) return;
+
+      const cached = registry.getCachedContent(doc.uri);
+      if (cached === undefined) return;
+
+      try {
+        const realPath = tempScriptManager.exportScriptSync(
+          doc.uri,
+          ref,
+          cached,
+        );
+        outputChannel.appendLine(`Exported to temp: ${realPath}`);
+        vscode.window.setStatusBarMessage(
+          `Frappe: Exported to ${realPath}`,
+          5000,
+        );
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        outputChannel.appendLine(`Export failed: ${msg}`);
+      }
+    }),
+  );
+
+  // ── Auto-sync on file save ────────────────────────────────────────────────
+
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument(async (doc) => {
+      if (!tempScriptManager) return;
+
+      const filePath = doc.uri.fsPath;
+      if (!filePath || !filePath.startsWith(tempScriptManager.getTempDir()))
+        return;
+
+      const virtualUriString = tempScriptManager.getVirtualUri(filePath);
+      if (!virtualUriString) return;
+
+      const virtualUri = vscode.Uri.parse(virtualUriString);
+      const ref = registry.getReference(virtualUri);
+      if (!ref) return;
+
+      const savedContent = fs.readFileSync(filePath, "utf8");
+      const cachedContent =
+        registry.getCachedContentByUriString(virtualUriString);
+
+      if (savedContent === cachedContent) return;
+
+      try {
+        await fileSystem.writeFile(
+          virtualUri,
+          new TextEncoder().encode(savedContent),
+          { create: false, overwrite: true },
+        );
+        registry.setCachedContentSync(virtualUriString, savedContent);
+        vscode.window.setStatusBarMessage("Frappe: Synced to Frappe", 3000);
+        outputChannel.appendLine(`Synced: ${ref.displayPath}`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        outputChannel.appendLine(`Sync failed: ${msg}`);
+        vscode.window.showErrorMessage(`Frappe: sync failed — ${msg}`);
+      }
+    }),
   );
 
   // ── Tree View Provider ──────────────────────────────────────────────────
 
   const treeProvider = new ScriptTreeProvider(registry);
+  treeProvider.setTempManager(tempScriptManager);
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider(
       "frappe-builder-scripts",
-      treeProvider
-    )
+      treeProvider,
+    ),
   );
 
   // ── Webview View Provider (Site Management) ─────────────────────────────
@@ -60,8 +136,8 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
       SiteViewProvider.viewType,
-      siteViewProvider
-    )
+      siteViewProvider,
+    ),
   );
 
   // ── Commands ────────────────────────────────────────────────────────────
@@ -70,7 +146,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("frappeBuilder.addSite", () => {
       // Focus the sites panel — the webview handles the form
       vscode.commands.executeCommand("frappe-builder-sites.focus");
-    })
+    }),
   );
 
   context.subscriptions.push(
@@ -83,7 +159,7 @@ export function activate(context: vscode.ExtensionContext): void {
             const confirm = await vscode.window.showWarningMessage(
               `Remove site "${site.name}"?`,
               { modal: true },
-              "Remove"
+              "Remove",
             );
             if (confirm === "Remove") {
               await siteManager.removeSite(item.siteId);
@@ -91,8 +167,8 @@ export function activate(context: vscode.ExtensionContext): void {
             }
           }
         }
-      }
-    )
+      },
+    ),
   );
 
   context.subscriptions.push(
@@ -108,21 +184,24 @@ export function activate(context: vscode.ExtensionContext): void {
             async () => {
               await siteManager.reloadSiteStatus(item.siteId!);
               await registry.loadAll();
-            }
+            },
           );
           vscode.window.showInformationMessage(
-            "Frappe Builder: Site status reloaded."
+            "Frappe Builder: Site status reloaded.",
           );
         }
-      }
-    )
+      },
+    ),
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("frappeBuilder.refreshScripts", async () => {
-      await registry.loadAll();
-      treeProvider.refresh();
-    })
+    vscode.commands.registerCommand(
+      "frappeBuilder.refreshScripts",
+      async () => {
+        await registry.loadAll();
+        treeProvider.refresh();
+      },
+    ),
   );
 
   // ── HTTP Server ─────────────────────────────────────────────────────────
@@ -152,11 +231,13 @@ export function activate(context: vscode.ExtensionContext): void {
   }
 
   outputChannel.appendLine(
-    `Initialized with ${sites.length} configured site(s).`
+    `Initialized with ${sites.length} configured site(s).`,
   );
 }
 
 export function deactivate(): void {
   httpServer?.stop();
   httpServer = null;
+  tempScriptManager?.cleanup();
+  tempScriptManager = null;
 }
