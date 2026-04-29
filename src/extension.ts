@@ -46,6 +46,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // ── Temp Script Manager ─────────────────────────────
 
   tempScriptManager = new TempScriptManager();
+  tempScriptManager.cleanup();
   tempScriptManager.ensureTempDir();
 
   // ── Auto-save temp files on document open ─────────────────────────────────────────

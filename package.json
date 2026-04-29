@@ -14,7 +14,10 @@
     "onStartupFinished"
   ],
   "main": "./out/extension.js",
-  "repository": "https://github.com/frappe/frappe-script-editor",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/frappe/frappe-script-editor"
+  },
   "contributes": {
     "viewsContainers": {
       "activitybar": [

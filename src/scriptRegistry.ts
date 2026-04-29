@@ -14,7 +14,7 @@ import type {
   ScriptReference,
   ScriptTreeItemData,
 } from "./types";
-import { sanitizeName } from "./utils";
+import { sanitizeName, normalizeUrl } from "./utils";
 
 /** Custom URI scheme for virtual script files. */
 export const SCHEME = "frappe-builder";
@@ -549,8 +549,4 @@ export class ScriptRegistry {
     }
     return undefined;
   }
-}
-
-function normalizeUrl(url: string): string {
-  return url.replace(/\/+$/, "").toLowerCase();
 }

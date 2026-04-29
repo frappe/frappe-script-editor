@@ -15,7 +15,7 @@ export function sanitizeName(name: string): string {
  */
 export function getFileExtension(
   fieldName: string,
-  scriptType?: string
+  scriptType?: string,
 ): string {
   switch (fieldName) {
     case "page_data_script":
@@ -41,7 +41,7 @@ export function getFileExtension(
  */
 export function getScriptDisplayName(
   fieldName: string,
-  scriptType?: string
+  scriptType?: string,
 ): string {
   switch (fieldName) {
     case "page_data_script":
@@ -79,5 +79,5 @@ export function generateId(): string {
  * Normalize a URL by removing trailing slashes.
  */
 export function normalizeUrl(url: string): string {
-  return url.replace(/\/+$/, "");
+  return url.replace(/\/+$/, "").toLowerCase();
 }
