@@ -89,17 +89,11 @@
     },
     "configuration": {
       "title": "Frappe Script Editor",
-      "properties": {
-        "frappeScriptEditor.httpServerPort": {
-          "type": "number",
-          "default": 52698,
-          "description": "Port for the local HTTP server that listens for browser requests."
-        }
-      }
+      "properties": {}
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "yarn compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts"
@@ -108,5 +102,8 @@
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.80.0",
     "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "portfinder": "^1.0.38"
   }
 }

@@ -10,6 +10,7 @@
 
 import * as vscode from "vscode";
 import * as fs from "fs";
+import * as portfinder from "portfinder";
 import { HttpServer } from "./httpServer";
 import { ScriptFileSystem } from "./scriptFileSystem";
 import { ScriptRegistry, SCHEME } from "./scriptRegistry";
@@ -21,7 +22,9 @@ import { TempScriptManager } from "./tempScriptManager";
 let httpServer: HttpServer | null = null;
 let tempScriptManager: TempScriptManager | null = null;
 
-export function activate(context: vscode.ExtensionContext): void {
+export async function activate(
+  context: vscode.ExtensionContext,
+): Promise<void> {
   const outputChannel = vscode.window.createOutputChannel(
     "Frappe Script Editor",
   );
@@ -207,8 +210,10 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // ── HTTP Server ─────────────────────────────────────────────────────────
 
-  const config = vscode.workspace.getConfiguration("frappeScriptEditor");
-  const port = config.get<number>("httpServerPort", 52698);
+  const port = await portfinder.getPortPromise({
+    port: 59000,
+    stopPort: 59999,
+  });
 
   httpServer = new HttpServer(port, registry, siteManager, outputChannel);
   httpServer.start();

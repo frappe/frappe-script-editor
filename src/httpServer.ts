@@ -102,6 +102,7 @@ export class HttpServer {
         active: true,
         version: pkg.version || "0.1.0",
         extension: "frappe-script-editor",
+        uriScheme: vscode.env.uriScheme,
       }),
     );
   }

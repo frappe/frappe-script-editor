@@ -16,8 +16,8 @@
 ```bash
 git clone https://github.com/frappe/frappe-script-editor.git
 cd frappe-script-editor
-npm install
-npm run compile
+yarn install
+yarn compile
 ```
 Then copy the extension folder to your VS Code extensions directory.
 
