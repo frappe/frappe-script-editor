@@ -1,5 +1,5 @@
 /**
- * Virtual FileSystem Provider for Frappe Builder scripts.
+ * Virtual FileSystem Provider for Frappe Script Editor scripts.
  *
  * Registers the `frappe-builder://` URI scheme so that scripts appear as
  * regular editable files in VS Code. Saves automatically push changes
@@ -25,7 +25,7 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
   constructor(
     siteManager: SiteManager,
     registry: ScriptRegistry,
-    outputChannel: vscode.OutputChannel
+    outputChannel: vscode.OutputChannel,
   ) {
     this.siteManager = siteManager;
     this.registry = registry;
@@ -63,9 +63,7 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
     };
   }
 
-  readDirectory(
-    _uri: vscode.Uri
-  ): [string, vscode.FileType][] {
+  readDirectory(_uri: vscode.Uri): [string, vscode.FileType][] {
     // Tree view handles navigation; this is a minimal implementation
     return [];
   }
@@ -93,21 +91,25 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
         if (doctype === "Builder Settings") {
           const settings = await client.getBuilderSettings();
           content =
-            ((settings as unknown as Record<string, unknown>)[fieldName] as string) || "";
+            ((settings as unknown as Record<string, unknown>)[
+              fieldName
+            ] as string) || "";
         } else if (doctype === "Builder Client Script") {
           const csDoc = await client.getClientScript(docname);
           content = csDoc.script || "";
         } else {
           const pageDoc = await client.getPageDoc(docname);
           content =
-            ((pageDoc as unknown as Record<string, unknown>)[fieldName] as string) || "";
+            ((pageDoc as unknown as Record<string, unknown>)[
+              fieldName
+            ] as string) || "";
         }
       } else if (ref.location.type === "blockScript") {
         const { docname, blockId, blockField } = ref.location;
         const { json } = await client.getPageBlocksRaw(docname);
         const blocks: BlockNode[] = JSON.parse(json);
         const block = findBlockById(blocks, blockId);
-        content = block ? ((block[blockField] as string) || "") : "";
+        content = block ? (block[blockField] as string) || "" : "";
       }
 
       this.registry.setCachedContent(uri, content);
@@ -115,7 +117,7 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       throw vscode.FileSystemError.Unavailable(
-        `Failed to read from Frappe: ${msg}`
+        `Failed to read from Frappe: ${msg}`,
       );
     }
   }
@@ -123,7 +125,7 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
   async writeFile(
     uri: vscode.Uri,
     content: Uint8Array,
-    _options: { create: boolean; overwrite: boolean }
+    _options: { create: boolean; overwrite: boolean },
   ): Promise<void> {
     const ref = this.registry.getReference(uri);
     if (!ref) {
@@ -139,7 +141,7 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
         const { doctype, docname, fieldName } = ref.location;
         await client.updateField(doctype, docname, fieldName, text);
         this.outputChannel.appendLine(
-          `✅ Saved ${fieldName} on ${doctype}/${docname}`
+          `✅ Saved ${fieldName} on ${doctype}/${docname}`,
         );
       } else if (ref.location.type === "blockScript") {
         const { docname, blockId, blockField } = ref.location;
@@ -151,18 +153,14 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
 
         if (!block) {
           throw new Error(
-            `Block "${blockId}" not found in page "${docname}". The block may have been removed.`
+            `Block "${blockId}" not found in page "${docname}". The block may have been removed.`,
           );
         }
 
         (block as Record<string, unknown>)[blockField] = text;
-        await client.updatePageBlocks(
-          docname,
-          field,
-          JSON.stringify(blocks)
-        );
+        await client.updatePageBlocks(docname, field, JSON.stringify(blocks));
         this.outputChannel.appendLine(
-          `✅ Saved ${blockField} on block "${blockId}" in page "${docname}"`
+          `✅ Saved ${blockField} on block "${blockId}" in page "${docname}"`,
         );
       }
 
@@ -187,19 +185,19 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
 
   createDirectory(_uri: vscode.Uri): void {
     throw vscode.FileSystemError.NoPermissions(
-      "Cannot create directories in Frappe Builder."
+      "Cannot create directories in Frappe Script Editor.",
     );
   }
 
   delete(_uri: vscode.Uri): void {
     throw vscode.FileSystemError.NoPermissions(
-      "Cannot delete files from Frappe Builder via this extension."
+      "Cannot delete files from Frappe Script Editor via this extension.",
     );
   }
 
   rename(_oldUri: vscode.Uri, _newUri: vscode.Uri): void {
     throw vscode.FileSystemError.NoPermissions(
-      "Cannot rename files in Frappe Builder via this extension."
+      "Cannot rename files in Frappe Script Editor via this extension.",
     );
   }
 
@@ -216,10 +214,7 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
 /**
  * Recursively search the block tree for a block with the given blockId.
  */
-function findBlockById(
-  blocks: BlockNode[],
-  blockId: string
-): BlockNode | null {
+function findBlockById(blocks: BlockNode[], blockId: string): BlockNode | null {
   for (const block of blocks) {
     if (!block) continue;
     if (block.blockId === blockId) return block;

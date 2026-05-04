@@ -10,8 +10,8 @@ import { FrappeClient } from "./frappeClient";
 import type { FrappeSiteConfig, StoredSiteConfig } from "./types";
 import { generateId, normalizeUrl } from "./utils";
 
-const SITES_STORAGE_KEY = "frappeBuilder.sites";
-const SECRET_PREFIX = "frappeBuilder.secret.";
+const SITES_STORAGE_KEY = "frappeScriptEditor.sites";
+const SECRET_PREFIX = "frappeScriptEditor.secret.";
 
 export class SiteManager {
   private _onDidChangeSites = new vscode.EventEmitter<void>();
@@ -54,7 +54,7 @@ export class SiteManager {
     name: string,
     url: string,
     apiKey: string,
-    apiSecret: string
+    apiSecret: string,
   ): Promise<FrappeSiteConfig> {
     url = normalizeUrl(url);
 
@@ -138,7 +138,7 @@ export class SiteManager {
     const secret = await this.secrets.get(SECRET_PREFIX + siteId);
     if (!secret) {
       throw new Error(
-        `API secret for site "${site.name}" not found. Please remove and re-add the site.`
+        `API secret for site "${site.name}" not found. Please remove and re-add the site.`,
       );
     }
 

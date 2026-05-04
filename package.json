@@ -1,7 +1,7 @@
 {
   "name": "frappe-script-editor",
   "displayName": "Frappe Script Editor",
-  "description": "Edit JavaScript, Python, HTML, and CSS scripts from Frappe Builder doctypes directly in VS Code with live sync on save.",
+  "description": "Edit JavaScript, Python, HTML, and CSS scripts from Frappe doctypes directly in VS Code with live sync on save.",
   "version": "0.1.0",
   "publisher": "frappe",
   "engines": {
@@ -22,75 +22,75 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "frappe-builder",
-          "title": "Frappe Builder",
-          "icon": "$(terminal)"
+          "id": "frappe-script-editor",
+          "title": "Frappe Script Editor",
+          "icon": "/images/frappe-icon.svg"
         }
       ]
     },
     "views": {
-      "frappe-builder": [
+      "frappe-script-editor": [
         {
           "type": "webview",
-          "id": "frappe-builder-sites",
+          "id": "frappe-script-editor-sites",
           "name": "Sites"
         },
         {
-          "id": "frappe-builder-scripts",
+          "id": "frappe-script-editor-scripts",
           "name": "Scripts"
         }
       ]
     },
     "commands": [
       {
-        "command": "frappeBuilder.addSite",
-        "title": "Frappe Builder: Add Site",
+        "command": "frappeScriptEditor.addSite",
+        "title": "Frappe Script Editor: Add Site",
         "icon": "$(add)"
       },
       {
-        "command": "frappeBuilder.removeSite",
+        "command": "frappeScriptEditor.removeSite",
         "title": "Remove Site",
         "icon": "$(trash)"
       },
       {
-        "command": "frappeBuilder.reloadSite",
+        "command": "frappeScriptEditor.reloadSite",
         "title": "Reload Site Status",
         "icon": "$(refresh)"
       },
       {
-        "command": "frappeBuilder.refreshScripts",
+        "command": "frappeScriptEditor.refreshScripts",
         "title": "Refresh Scripts",
         "icon": "$(refresh)"
       },
       {
-        "command": "frappeBuilder.openScript",
+        "command": "frappeScriptEditor.openScript",
         "title": "Open Script"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "frappeBuilder.refreshScripts",
-          "when": "view == frappe-builder-scripts",
+          "command": "frappeScriptEditor.refreshScripts",
+          "when": "view == frappe-script-editor-scripts",
           "group": "navigation"
         }
       ],
       "view/item/context": [
         {
-          "command": "frappeBuilder.removeSite",
-          "when": "view == frappe-builder-scripts && viewItem == site",
+          "command": "frappeScriptEditor.removeSite",
+          "when": "view == frappe-script-editor-scripts && viewItem == site",
           "group": "inline"
         },
         {
-          "command": "frappeBuilder.reloadSite",
-          "when": "view == frappe-builder-scripts && viewItem == site"
+          "command": "frappeScriptEditor.reloadSite",
+          "when": "view == frappe-script-editor-scripts && viewItem == site"
         }
       ]
     },
     "configuration": {
       "title": "Frappe Script Editor",
       "properties": {
-        "frappeBuilder.httpServerPort": {
+        "frappeScriptEditor.httpServerPort": {
           "type": "number",
           "default": 52698,
           "description": "Port for the local HTTP server that listens for browser requests."

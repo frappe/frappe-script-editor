@@ -90,7 +90,7 @@ export class ScriptRegistry {
     await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: "Frappe Builder: Loading scripts…",
+        title: "Frappe Script Editor: Loading scripts…",
         cancellable: false,
       },
       async (progress) => {
@@ -166,6 +166,7 @@ export class ScriptRegistry {
             docname: "Builder Settings",
             fieldName: sf.field,
           },
+          scriptType: "clientScript",
           fileExtension: sf.ext,
           displayPath,
         };
@@ -266,6 +267,7 @@ export class ScriptRegistry {
               docname: csDoc.name,
               fieldName: "script",
             },
+            scriptType: "clientScript",
             fileExtension: ext,
             displayPath,
           };
@@ -304,6 +306,7 @@ export class ScriptRegistry {
           docname: doc.name,
           fieldName: "page_data_script",
         },
+        scriptType: "pageDataScript",
         fileExtension: ".py",
         displayPath,
       };
@@ -361,6 +364,7 @@ export class ScriptRegistry {
           docname: doc.name,
           fieldName: field,
         },
+        scriptType: "clientScript",
         fileExtension: ".html",
         displayPath,
       };
@@ -426,6 +430,7 @@ export class ScriptRegistry {
               blockId: block.blockId,
               blockField: "blockClientScript",
             },
+            scriptType: "blockClientScript",
             fileExtension: ".js",
             displayPath,
           };
@@ -455,6 +460,7 @@ export class ScriptRegistry {
               blockId: block.blockId,
               blockField: "blockDataScript",
             },
+            scriptType: "blockDataScript",
             fileExtension: ".py",
             displayPath,
           };

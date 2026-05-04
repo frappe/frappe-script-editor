@@ -22,6 +22,12 @@ export interface StoredSiteConfig {
 
 // ── Script References ───────────────────────────────────────────────────────
 
+export type ScriptType =
+  | "clientScript"
+  | "pageDataScript"
+  | "blockClientScript"
+  | "blockDataScript";
+
 export type ScriptLocation =
   | { type: "docField"; doctype: string; docname: string; fieldName: string }
   | {
@@ -36,6 +42,7 @@ export type ScriptLocation =
 export interface ScriptReference {
   siteId: string;
   location: ScriptLocation;
+  scriptType: ScriptType;
   fileExtension: string; // ".js" | ".py" | ".html" | ".css"
   displayPath: string; // human-readable path shown in tree
 }

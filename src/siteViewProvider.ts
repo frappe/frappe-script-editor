@@ -10,7 +10,7 @@ import type { SiteManager } from "./siteManager";
 import type { ScriptRegistry } from "./scriptRegistry";
 
 export class SiteViewProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = "frappe-builder-sites";
+  public static readonly viewType = "frappe-script-editor-sites";
 
   private view?: vscode.WebviewView;
   private siteManager: SiteManager;
@@ -29,7 +29,7 @@ export class SiteViewProvider implements vscode.WebviewViewProvider {
   resolveWebviewView(
     webviewView: vscode.WebviewView,
     _context: vscode.WebviewViewResolveContext,
-    _token: vscode.CancellationToken
+    _token: vscode.CancellationToken,
   ): void {
     this.view = webviewView;
 
@@ -69,14 +69,14 @@ export class SiteViewProvider implements vscode.WebviewViewProvider {
         message.name,
         message.url,
         message.apiKey,
-        message.apiSecret
+        message.apiSecret,
       );
 
       if (site.hasBuilder === false) {
         this.postMessage({
           type: "info",
           message:
-            "Site added but Frappe Builder app is not installed. Install Builder on this site or click Reload to re-check.",
+            "Site added but Frappe Script Editor app is not installed. Install Builder on this site or click Reload to re-check.",
         });
       } else {
         this.postMessage({
@@ -102,7 +102,7 @@ export class SiteViewProvider implements vscode.WebviewViewProvider {
     const confirm = await vscode.window.showWarningMessage(
       `Remove site "${site.name}"? This will remove the saved credentials.`,
       { modal: true },
-      "Remove"
+      "Remove",
     );
 
     if (confirm === "Remove") {

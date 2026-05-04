@@ -1,7 +1,7 @@
 /**
  * Local HTTP Server for browser → VS Code communication.
  *
- * Allows Frappe Builder to:
+ * Allows Frappe Script Editor to:
  *   1. Check if VS Code extension is running (GET /status)
  *   2. Open a specific script in the editor (POST /open)
  *
@@ -25,7 +25,7 @@ export class HttpServer {
     port: number,
     registry: ScriptRegistry,
     siteManager: SiteManager,
-    outputChannel: vscode.OutputChannel
+    outputChannel: vscode.OutputChannel,
   ) {
     this.port = port;
     this.registry = registry;
@@ -62,17 +62,17 @@ export class HttpServer {
 
     this.server.listen(this.port, "127.0.0.1", () => {
       this.outputChannel.appendLine(
-        `HTTP server listening on http://127.0.0.1:${this.port}`
+        `HTTP server listening on http://127.0.0.1:${this.port}`,
       );
     });
 
     this.server.on("error", (err: NodeJS.ErrnoException) => {
       if (err.code === "EADDRINUSE") {
         this.outputChannel.appendLine(
-          `Port ${this.port} is in use. HTTP server not started. Change the port in settings (frappeBuilder.httpServerPort).`
+          `Port ${this.port} is in use. HTTP server not started. Change the port in settings (frappeScriptEditor.httpServerPort).`,
         );
         vscode.window.showWarningMessage(
-          `Frappe Builder: Port ${this.port} is in use. Browser integration unavailable. Change the port in settings.`
+          `Frappe Script Editor: Port ${this.port} is in use. Browser integration unavailable. Change the port in settings.`,
         );
       } else {
         this.outputChannel.appendLine(`HTTP server error: ${err.message}`);
@@ -102,13 +102,13 @@ export class HttpServer {
         active: true,
         version: pkg.version || "0.1.0",
         extension: "frappe-script-editor",
-      })
+      }),
     );
   }
 
   private handleOpen(
     req: http.IncomingMessage,
-    res: http.ServerResponse
+    res: http.ServerResponse,
   ): void {
     let body = "";
     req.on("data", (chunk) => (body += chunk.toString()));
@@ -121,13 +121,13 @@ export class HttpServer {
           res.end(
             JSON.stringify({
               error: "Missing required fields: site, doctype, docname",
-            })
+            }),
           );
           return;
         }
 
         this.outputChannel.appendLine(
-          `Open request: ${data.doctype}/${data.docname}/${data.field || data.blockField || ""}`
+          `Open request: ${data.doctype}/${data.docname}/${data.field || data.blockField || ""}`,
         );
 
         // Find the matching script reference
@@ -137,7 +137,7 @@ export class HttpServer {
           data.docname,
           data.field,
           data.blockId,
-          data.blockField
+          data.blockField,
         );
 
         if (result) {
@@ -146,7 +146,9 @@ export class HttpServer {
           await vscode.window.showTextDocument(doc, { preview: false });
 
           res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ success: true, path: result.uri.toString() }));
+          res.end(
+            JSON.stringify({ success: true, path: result.uri.toString() }),
+          );
         } else {
           // Script not found in registry — maybe site not configured
           const site = this.siteManager.findSiteByUrl(data.site);
@@ -154,12 +156,12 @@ export class HttpServer {
             res.writeHead(404, { "Content-Type": "application/json" });
             res.end(
               JSON.stringify({
-                error: `Site "${data.site}" is not configured in VS Code. Add it from the Frappe Builder sidebar.`,
-              })
+                error: `Site "${data.site}" is not configured in VS Code. Add it from the Frappe Script Editor sidebar.`,
+              }),
             );
 
             vscode.window.showWarningMessage(
-              `Frappe Builder: Site "${data.site}" is not configured. Add it from the sidebar.`
+              `Frappe Script Editor: Site "${data.site}" is not configured. Add it from the sidebar.`,
             );
           } else {
             // Site exists but script not in registry — try reloading
@@ -167,11 +169,11 @@ export class HttpServer {
             res.end(
               JSON.stringify({
                 error: `Script not found. Try refreshing the scripts list in VS Code.`,
-              })
+              }),
             );
 
             vscode.window.showWarningMessage(
-              `Frappe Builder: Script not found for ${data.doctype}/${data.docname}. Try refreshing the scripts list.`
+              `Frappe Script Editor: Script not found for ${data.doctype}/${data.docname}. Try refreshing the scripts list.`,
             );
           }
         }

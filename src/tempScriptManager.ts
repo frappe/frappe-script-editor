@@ -1,5 +1,5 @@
 /**
- * Temp Script Manager — Exports Frappe Builder scripts to a cross-platform temp directory.
+ * Temp Script Manager — Exports Frappe Script Editor scripts to a cross-platform temp directory.
  *
  * This enables AI agents to access script files via real filesystem paths.
  * - Auto-exports scripts to os.tmpdir()/frappe-scripts/ on document open

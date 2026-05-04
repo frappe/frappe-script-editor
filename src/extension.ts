@@ -126,7 +126,7 @@ export function activate(context: vscode.ExtensionContext): void {
   treeProvider.setTempManager(tempScriptManager);
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider(
-      "frappe-builder-scripts",
+      "frappe-script-editor-scripts",
       treeProvider,
     ),
   );
@@ -144,15 +144,15 @@ export function activate(context: vscode.ExtensionContext): void {
   // ── Commands ────────────────────────────────────────────────────────────
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("frappeBuilder.addSite", () => {
+    vscode.commands.registerCommand("frappeScriptEditor.addSite", () => {
       // Focus the sites panel — the webview handles the form
-      vscode.commands.executeCommand("frappe-builder-sites.focus");
+      vscode.commands.executeCommand("frappe-script-editor-sites.focus");
     }),
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      "frappeBuilder.removeSite",
+      "frappeScriptEditor.removeSite",
       async (item: { siteId?: string }) => {
         if (item?.siteId) {
           const site = siteManager.getSite(item.siteId);
@@ -174,13 +174,13 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      "frappeBuilder.reloadSite",
+      "frappeScriptEditor.reloadSite",
       async (item: { siteId?: string }) => {
         if (item?.siteId) {
           await vscode.window.withProgress(
             {
               location: vscode.ProgressLocation.Notification,
-              title: "Frappe Builder: Reloading site status…",
+              title: "Frappe Script Editor: Reloading site status…",
             },
             async () => {
               await siteManager.reloadSiteStatus(item.siteId!);
@@ -188,7 +188,7 @@ export function activate(context: vscode.ExtensionContext): void {
             },
           );
           vscode.window.showInformationMessage(
-            "Frappe Builder: Site status reloaded.",
+            "Frappe Script Editor: Site status reloaded.",
           );
         }
       },
@@ -197,7 +197,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      "frappeBuilder.refreshScripts",
+      "frappeScriptEditor.refreshScripts",
       async () => {
         await registry.loadAll();
         treeProvider.refresh();
@@ -207,7 +207,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // ── HTTP Server ─────────────────────────────────────────────────────────
 
-  const config = vscode.workspace.getConfiguration("frappeBuilder");
+  const config = vscode.workspace.getConfiguration("frappeScriptEditor");
   const port = config.get<number>("httpServerPort", 52698);
 
   httpServer = new HttpServer(port, registry, siteManager, outputChannel);

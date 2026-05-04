@@ -31,7 +31,7 @@ export class FrappeClient {
   private request<T = unknown>(
     method: string,
     path: string,
-    body?: Record<string, unknown>
+    body?: Record<string, unknown>,
   ): Promise<T> {
     return new Promise((resolve, reject) => {
       const url = new URL(path, this.baseUrl);
@@ -102,7 +102,7 @@ export class FrappeClient {
   async authenticate(): Promise<string> {
     const res = await this.request<{ message: string }>(
       "GET",
-      "/api/method/frappe.auth.get_logged_user"
+      "/api/method/frappe.auth.get_logged_user",
     );
     return res.message;
   }
@@ -113,10 +113,7 @@ export class FrappeClient {
    */
   async checkBuilderInstalled(): Promise<boolean> {
     try {
-      await this.request(
-        "GET",
-        `/api/resource/Module Def/Builder`
-      );
+      await this.request("GET", `/api/resource/Module Def/Builder`);
       return true;
     } catch {
       return false;
@@ -127,7 +124,7 @@ export class FrappeClient {
   async getBuilderPages(): Promise<FrappePageSummary[]> {
     const res = await this.request<{ data: FrappePageSummary[] }>(
       "GET",
-      `/api/resource/Builder Page?fields=["name","page_name","page_title"]&limit_page_length=0&order_by=page_name asc`
+      `/api/resource/Builder Page?fields=["name","page_name","page_title"]&limit_page_length=0&order_by=page_name asc`,
     );
     return res.data || [];
   }
@@ -136,7 +133,7 @@ export class FrappeClient {
   async getPageDoc(name: string): Promise<FrappePageDoc> {
     const res = await this.request<{ data: FrappePageDoc }>(
       "GET",
-      `/api/resource/Builder Page/${encodeURIComponent(name)}`
+      `/api/resource/Builder Page/${encodeURIComponent(name)}`,
     );
     return res.data;
   }
@@ -145,7 +142,7 @@ export class FrappeClient {
   async getBuilderSettings(): Promise<FrappeBuilderSettingsDoc> {
     const res = await this.request<{ data: FrappeBuilderSettingsDoc }>(
       "GET",
-      `/api/resource/Builder Settings/Builder Settings`
+      `/api/resource/Builder Settings/Builder Settings`,
     );
     return res.data;
   }
@@ -154,7 +151,7 @@ export class FrappeClient {
   async getClientScript(name: string): Promise<FrappeClientScriptDoc> {
     const res = await this.request<{ data: FrappeClientScriptDoc }>(
       "GET",
-      `/api/resource/Builder Client Script/${encodeURIComponent(name)}`
+      `/api/resource/Builder Client Script/${encodeURIComponent(name)}`,
     );
     return res.data;
   }
@@ -164,12 +161,12 @@ export class FrappeClient {
     doctype: string,
     docname: string,
     fieldName: string,
-    value: string
+    value: string,
   ): Promise<void> {
     await this.request(
       "PUT",
       `/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(docname)}`,
-      { [fieldName]: value }
+      { [fieldName]: value },
     );
   }
 
@@ -178,7 +175,7 @@ export class FrappeClient {
    * Returns the JSON string and which field it came from.
    */
   async getPageBlocksRaw(
-    name: string
+    name: string,
   ): Promise<{ json: string; field: "draft_blocks" | "blocks" }> {
     const doc = await this.getPageDoc(name);
     if (doc.draft_blocks) {
@@ -191,12 +188,12 @@ export class FrappeClient {
   async updatePageBlocks(
     name: string,
     field: "draft_blocks" | "blocks",
-    blocksJson: string
+    blocksJson: string,
   ): Promise<void> {
     await this.request(
       "PUT",
       `/api/resource/Builder Page/${encodeURIComponent(name)}`,
-      { [field]: blocksJson }
+      { [field]: blocksJson },
     );
   }
 }
