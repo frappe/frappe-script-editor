@@ -16,6 +16,7 @@ import type { ScriptReference } from "./types";
 export class TempScriptManager {
   private tempDir: string;
   private virtualUriMap = new Map<string, string>();
+  private uniqueIdMap = new Map<string, string>();
 
   constructor() {
     this.tempDir = path.join(os.tmpdir(), "frappe-scripts");
@@ -32,9 +33,22 @@ export class TempScriptManager {
     return displayPath.replace(/\//g, path.sep).replace(/ /g, "_");
   }
 
+  private generateUniqueId(): string {
+    return Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+  }
+
   getTempPath(siteId: string, displayPath: string): string {
     const sanitized = this.sanitizeFileName(displayPath);
-    return path.join(this.tempDir, siteId, sanitized);
+    const key = `${siteId}:${displayPath}`;
+
+    // Use existing unique ID if already generated for this key
+    let uniqueId = this.uniqueIdMap.get(key);
+    if (!uniqueId) {
+      uniqueId = this.generateUniqueId();
+      this.uniqueIdMap.set(key, uniqueId);
+    }
+
+    return path.join(this.tempDir, siteId, `${uniqueId}_${sanitized}`);
   }
 
   exportScriptSync(
@@ -84,5 +98,6 @@ export class TempScriptManager {
       fs.rmSync(this.tempDir, { recursive: true, force: true });
     }
     this.virtualUriMap.clear();
+    this.uniqueIdMap.clear();
   }
 }

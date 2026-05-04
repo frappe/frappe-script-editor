@@ -208,6 +208,18 @@ export async function activate(
     ),
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "frappeScriptEditor.collapseFolders",
+      async () => {
+        await vscode.commands.executeCommand(
+          "frappe-script-editor-scripts.focus",
+        );
+        await vscode.commands.executeCommand("list.collapseAll");
+      },
+    ),
+  );
+
   // ── HTTP Server ─────────────────────────────────────────────────────────
 
   const port = await portfinder.getPortPromise({

@@ -1,8 +1,8 @@
 /**
  * Tree Data Provider for the sidebar Scripts view.
  *
- * Displays a hierarchical view of all scripts from all configured sites:
- *   Site → Builder Settings → Pages → Scripts / Blocks
+ * Displays a hierarchical view matching Builder's nested structure*
+ *
  */
 
 import * as vscode from "vscode";
@@ -39,14 +39,20 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
     const isCollapsible =
       element.children !== undefined && element.children.length > 0;
 
-    const treeItem = new vscode.TreeItem(
-      element.label,
-      isCollapsible
-        ? element.type === "site"
-          ? vscode.TreeItemCollapsibleState.Expanded
-          : vscode.TreeItemCollapsibleState.Collapsed
-        : vscode.TreeItemCollapsibleState.None,
-    );
+    // Determine collapsible state based on node type
+    let collapsibleState: vscode.TreeItemCollapsibleState;
+    if (!isCollapsible) {
+      collapsibleState = vscode.TreeItemCollapsibleState.None;
+    } else if (element.type === "site") {
+      collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
+    } else if (element.type === "blockElement") {
+      // Block elements show their scripts inline, collapse by default
+      collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+    } else {
+      collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+    }
+
+    const treeItem = new vscode.TreeItem(element.label, collapsibleState);
 
     // Set context value for context menus
     treeItem.contextValue = element.contextValue || element.type;
@@ -68,6 +74,9 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
         case "clientScriptsFolder":
         case "pageBlocksFolder":
           treeItem.iconPath = new vscode.ThemeIcon("folder");
+          break;
+        case "blockElement":
+          treeItem.iconPath = new vscode.ThemeIcon("symbol-structure");
           break;
         case "blockFolder":
           treeItem.iconPath = new vscode.ThemeIcon("symbol-structure");
