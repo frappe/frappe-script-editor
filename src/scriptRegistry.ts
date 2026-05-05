@@ -68,14 +68,6 @@ export class ScriptRegistry {
     this.contentCache.set(uriString, content);
   }
 
-  isVirtualUri(uri: vscode.Uri): boolean {
-    return uri.scheme === SCHEME;
-  }
-
-  invalidateCache(uri: vscode.Uri): void {
-    this.contentCache.delete(uri.toString());
-  }
-
   /**
    * Load/reload all scripts for all configured sites.
    * Shows progress notification during loading.

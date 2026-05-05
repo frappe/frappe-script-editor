@@ -75,12 +75,6 @@
         "icon": "$(collapse-all)"
       },
       {
-        "command": "frappeScriptEditor.openScript",
-        "title": "Frappe Script Editor: Open Script",
-        "shortTitle": "Open Script"
-
-      },
-      {
         "command": "frappeScriptEditor.openSite",
         "title": "Frappe Script Editor: Open Site",
         "shortTitle": "Open Site"

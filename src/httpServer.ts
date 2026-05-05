@@ -88,10 +88,6 @@ export class HttpServer {
     }
   }
 
-  dispose(): void {
-    this.stop();
-  }
-
   // ── Handlers ──────────────────────────────────────────────────────────
 
   private handleStatus(res: http.ServerResponse): void {

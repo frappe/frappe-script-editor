@@ -56,7 +56,6 @@ export type TreeItemType =
   | "clientScriptsFolder"
   | "pageBlocksFolder"
   | "blockElement" // Visual block element (container, text, image, etc.)
-  | "blockFolder"
   | "scriptFile";
 
 export interface ScriptTreeItemData {

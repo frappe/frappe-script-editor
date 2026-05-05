@@ -81,9 +81,6 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
         case "blockElement":
           treeItem.iconPath = new vscode.ThemeIcon("symbol-structure");
           break;
-        case "blockFolder":
-          treeItem.iconPath = new vscode.ThemeIcon("symbol-structure");
-          break;
         case "scriptFile":
           treeItem.iconPath = new vscode.ThemeIcon("file");
           break;

@@ -69,22 +69,6 @@ export class TempScriptManager {
     return tempPath;
   }
 
-  async exportAll(
-    getReferences: () => Iterable<[string, ScriptReference]>,
-    getCachedContent: (uri: vscode.Uri) => string | undefined,
-  ): Promise<void> {
-    this.ensureTempDir();
-
-    for (const [uriStr, ref] of getReferences()) {
-      const uri = vscode.Uri.parse(uriStr);
-      const cached = getCachedContent(uri);
-
-      if (cached !== undefined) {
-        this.exportScriptSync(uri, ref, cached);
-      }
-    }
-  }
-
   getVirtualUri(filePath: string): string | undefined {
     return this.virtualUriMap.get(filePath);
   }
