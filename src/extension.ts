@@ -371,15 +371,15 @@ export async function activate(
           await vscode.window.withProgress(
             {
               location: vscode.ProgressLocation.Notification,
-              title: "Frappe Script Editor: Reloading site status…",
+              title: "Frappe Script Editor",
             },
-            async () => {
+            async (progress) => {
+              progress.report({ message: "Reloading site status…" });
               await siteManager.reloadSiteStatus(item.siteId!);
-              await registry.loadAll();
+              progress.report({ message: "Loading scripts…" });
+              await registry.reloadSite(item.siteId!);
+              progress.report({ message: "Site status reloaded." });
             },
-          );
-          vscode.window.showInformationMessage(
-            "Frappe Script Editor: Site status reloaded.",
           );
         }
       },

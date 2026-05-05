@@ -76,21 +76,33 @@ export class ScriptRegistry {
     const site = this.siteManager.getSite(siteId);
     if (!site) return;
 
-    this.clearSiteData(siteId);
+    this.clearSiteRegistryData(siteId);
+
+    const existingNode = this.treeData.get(siteId);
+    if (existingNode) {
+      existingNode.children = [];
+      existingNode.hasBuilder = site.hasBuilder;
+      existingNode.tooltip =
+        site.hasBuilder === false
+          ? "Builder app is not installed on this site. Click to reload and check again."
+          : undefined;
+    }
 
     if (site.hasBuilder === false) {
-      const siteNode: ScriptTreeItemData = {
-        type: "site",
-        label: `${site.name}`,
-        siteId,
-        siteUrl: site.url,
-        hasBuilder: site.hasBuilder,
-        contextValue: "site",
-        children: [],
-        tooltip:
-          "Builder app is not installed on this site. Click to reload and check again.",
-      };
-      this.treeData.set(siteId, siteNode);
+      if (!existingNode) {
+        const siteNode: ScriptTreeItemData = {
+          type: "site",
+          label: `${site.name}`,
+          siteId,
+          siteUrl: site.url,
+          hasBuilder: site.hasBuilder,
+          contextValue: "site",
+          children: [],
+          tooltip:
+            "Builder app is not installed on this site. Click to reload and check again.",
+        };
+        this.treeData.set(siteId, siteNode);
+      }
       this._onDidChange.fire();
       return;
     }
@@ -107,14 +119,7 @@ export class ScriptRegistry {
     }
   }
 
-  /**
-   * Clear all data for a specific site from registry and cache.
-   */
-  private clearSiteData(siteId: string): void {
-    // Remove from treeData
-    this.treeData.delete(siteId);
-
-    // Remove all registry entries for this site
+  private clearSiteRegistryData(siteId: string): void {
     for (const [uriStr, ref] of this.registry.entries()) {
       if (ref.siteId === siteId) {
         this.registry.delete(uriStr);
