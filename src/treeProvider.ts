@@ -92,6 +92,28 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
         title: "Open Site",
         arguments: [{ siteId: element.siteId }],
       };
+
+      let statusIcon = "circle-large-filled";
+      let statusText: string;
+      let iconColor: vscode.ThemeColor;
+
+      if (element.hasBuilder === true) {
+        statusIcon = "pass-filled";
+        statusText = "Builder detected";
+        iconColor = new vscode.ThemeColor("testing.iconPassed");
+      } else if (element.hasBuilder === false) {
+        statusIcon = "warning";
+        statusText = "Builder not installed";
+        iconColor = new vscode.ThemeColor("problemsWarningIcon.foreground");
+      } else {
+        statusIcon = "error";
+        statusText = "Status unknown";
+        iconColor = new vscode.ThemeColor("problemsErrorIcon.foreground");
+      }
+
+      treeItem.description = element.siteUrl;
+      treeItem.tooltip = `${element.siteUrl}\nStatus: ${statusText}`;
+      treeItem.iconPath = new vscode.ThemeIcon(statusIcon, iconColor);
     }
 
     // For script files, clicking opens the temp file if available

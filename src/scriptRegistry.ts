@@ -83,6 +83,8 @@ export class ScriptRegistry {
         type: "site",
         label: `${site.name}`,
         siteId,
+        siteUrl: site.url,
+        hasBuilder: site.hasBuilder,
         contextValue: "site",
         children: [],
         tooltip:
@@ -148,6 +150,8 @@ export class ScriptRegistry {
               type: "site",
               label: `${site.name}`,
               siteId: site.id,
+              siteUrl: site.url,
+              hasBuilder: site.hasBuilder,
               contextValue: "site",
               children: [],
               tooltip:
@@ -186,6 +190,8 @@ export class ScriptRegistry {
       type: "site",
       label: `${siteName}`,
       siteId,
+      siteUrl,
+      hasBuilder: true,
       contextValue: "site",
       children: [],
     };

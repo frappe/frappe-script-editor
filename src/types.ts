@@ -62,6 +62,8 @@ export interface ScriptTreeItemData {
   type: TreeItemType;
   label: string;
   siteId: string;
+  siteUrl?: string;
+  hasBuilder?: boolean | null;
   /** For file nodes, the URI to open */
   uri?: vscode.Uri;
   /** For collapsible nodes, child items */

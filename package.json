@@ -117,7 +117,8 @@
         },
         {
           "command": "frappeScriptEditor.reloadSite",
-          "when": "view == frappe-script-editor-scripts && viewItem == site"
+          "when": "view == frappe-script-editor-scripts && viewItem == site",
+          "group": "inline"
         }
       ]
     },
