@@ -458,7 +458,7 @@ export async function activate(
 
   const port = await portfinder.getPortPromise({
     port: 59000,
-    stopPort: 59999,
+    stopPort: 59021,
   });
 
   httpServer = new HttpServer(port, registry, siteManager, outputChannel);
