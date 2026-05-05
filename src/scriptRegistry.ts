@@ -69,6 +69,59 @@ export class ScriptRegistry {
   }
 
   /**
+   * Load/reload scripts for a single site.
+   * Updates only that site's data without clearing other sites.
+   */
+  async reloadSite(siteId: string): Promise<void> {
+    const site = this.siteManager.getSite(siteId);
+    if (!site) return;
+
+    this.clearSiteData(siteId);
+
+    if (site.hasBuilder === false) {
+      const siteNode: ScriptTreeItemData = {
+        type: "site",
+        label: `${site.name}`,
+        siteId,
+        contextValue: "site",
+        children: [],
+        tooltip:
+          "Builder app is not installed on this site. Click to reload and check again.",
+      };
+      this.treeData.set(siteId, siteNode);
+      this._onDidChange.fire();
+      return;
+    }
+
+    try {
+      const client = await this.siteManager.getClient(siteId);
+      await this.loadSite(siteId, site.name, site.url, client);
+      this._onDidChange.fire();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      vscode.window.showWarningMessage(
+        `Failed to reload scripts from "${site.name}": ${msg}`,
+      );
+    }
+  }
+
+  /**
+   * Clear all data for a specific site from registry and cache.
+   */
+  private clearSiteData(siteId: string): void {
+    // Remove from treeData
+    this.treeData.delete(siteId);
+
+    // Remove all registry entries for this site
+    for (const [uriStr, ref] of this.registry.entries()) {
+      if (ref.siteId === siteId) {
+        this.registry.delete(uriStr);
+        this.contentCache.delete(uriStr);
+      }
+    }
+  }
+
+  /**
    * Load/reload all scripts for all configured sites.
    * Shows progress notification during loading.
    */

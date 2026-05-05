@@ -371,6 +371,29 @@ export async function activate(
   outputChannel.appendLine(
     `Initialized with ${sites.length} configured site(s).`,
   );
+
+  // Refetch scripts when VS Code regains focus
+  let isFirstFocus = true;
+  context.subscriptions.push(
+    vscode.window.onDidChangeWindowState(async (state) => {
+      if (!state.focused) return;
+      if (isFirstFocus) {
+        isFirstFocus = false;
+        return;
+      }
+
+      const activeSiteId = treeProvider.currentSiteId;
+      if (!activeSiteId) return;
+
+      try {
+        await registry.reloadSite(activeSiteId);
+        outputChannel.appendLine(`Refetched scripts for site: ${activeSiteId}`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        outputChannel.appendLine(`Refetch failed: ${msg}`);
+      }
+    }),
+  );
 }
 
 export function deactivate(): void {
