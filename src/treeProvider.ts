@@ -1,7 +1,7 @@
 /**
  * Tree Data Provider for the sidebar Scripts view.
  *
- * Displays a hierarchical view matching Builder's nested structure*
+ * Displays a hierarchical view of all scripts from all configured sites:
  *
  */
 
@@ -48,9 +48,6 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
       collapsibleState = this.currentSiteId
         ? vscode.TreeItemCollapsibleState.Expanded
         : vscode.TreeItemCollapsibleState.None;
-    } else if (element.type === "blockElement") {
-      // Block elements show their scripts inline, collapse by default
-      collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
     } else {
       collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
     }
@@ -77,9 +74,6 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
         case "clientScriptsFolder":
         case "pageBlocksFolder":
           treeItem.iconPath = new vscode.ThemeIcon("folder");
-          break;
-        case "blockElement":
-          treeItem.iconPath = new vscode.ThemeIcon("symbol-structure");
           break;
         case "scriptFile":
           treeItem.iconPath = new vscode.ThemeIcon("file");

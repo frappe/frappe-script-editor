@@ -443,9 +443,8 @@ export class ScriptRegistry {
   }
 
   /**
-   * Recursively walk the block tree and build a nested tree structure
-   * matching Builder's visual hierarchy. Every block becomes a node,
-   * with scripts as children and nested blocks as grandchildren.
+   * Recursively walk the block tree and extract blocks that have scripts.
+   * Returns tree nodes for blocks with blockClientScript or blockDataScript.
    */
   private extractBlockScripts(
     siteId: string,
@@ -459,210 +458,106 @@ export class ScriptRegistry {
     for (const block of blocks) {
       if (!block) continue;
 
-      // Build the display label like Builder does (component name or block name)
-      const blockLabel = this.getBlockDisplayLabel(block);
-      const blockId =
-        block.blockId || `block-${Math.random().toString(36).substr(2, 9)}`;
+      const hasClientScript = !!block.blockClientScript;
+      const hasDataScript = !!block.blockDataScript;
 
-      // Build the path for this block
-      const sanitizedLabel = sanitizeName(blockLabel);
-      const blockPath = parentPath
-        ? `${parentPath}/${sanitizedLabel}`
-        : sanitizedLabel;
+      if (hasClientScript || hasDataScript) {
+        const blockLabel = block.blockName || block.blockId || "unnamed-block";
+        const blockPath = parentPath
+          ? `${parentPath}/${sanitizeName(blockLabel)}`
+          : sanitizeName(blockLabel);
 
-      // Create the block element node (always shown, like in Builder)
-      const blockNode: ScriptTreeItemData = {
-        type: "blockElement",
-        label: blockLabel,
-        siteId,
-        blockId,
-        children: [],
-        iconId: this.getBlockIcon(block),
-        tooltip: `Block: ${blockLabel}${block.componentName ? ` (${block.componentName})` : ""}`,
-      };
-
-      // Add script files as children if they exist
-      if (block.blockClientScript) {
-        const displayPath = `${pageName}/page blocks/${blockPath}/client script.js`;
-        const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
-
-        const ref: ScriptReference = {
+        const blockFolder: ScriptTreeItemData = {
+          type: "blockFolder",
+          label: blockLabel,
           siteId,
-          location: {
-            type: "blockScript",
-            doctype: "Builder Page",
-            docname,
-            blockId,
-            blockField: "blockClientScript",
-          },
-          scriptType: "blockClientScript",
-          fileExtension: ".js",
-          displayPath,
+          children: [],
+          iconId: "symbol-structure",
         };
 
-        this.registry.set(uri.toString(), ref);
-        this.contentCache.set(uri.toString(), block.blockClientScript);
+        if (hasClientScript && block.blockId) {
+          const displayPath = `${pageName}/page blocks/${blockPath}/client script.js`;
+          const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
-        blockNode.children!.push({
-          type: "scriptFile",
-          label: "client script.js",
-          siteId,
-          uri,
-          iconId: "symbol-event",
-        });
+          const ref: ScriptReference = {
+            siteId,
+            location: {
+              type: "blockScript",
+              doctype: "Builder Page",
+              docname,
+              blockId: block.blockId,
+              blockField: "blockClientScript",
+            },
+            scriptType: "blockClientScript",
+            fileExtension: ".js",
+            displayPath,
+          };
+
+          this.registry.set(uri.toString(), ref);
+          this.contentCache.set(uri.toString(), block.blockClientScript || "");
+
+          blockFolder.children!.push({
+            type: "scriptFile",
+            label: "client script.js",
+            siteId,
+            uri,
+            iconId: "symbol-event",
+          });
+        }
+
+        if (hasDataScript && block.blockId) {
+          const displayPath = `${pageName}/page blocks/${blockPath}/data script.py`;
+          const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
+
+          const ref: ScriptReference = {
+            siteId,
+            location: {
+              type: "blockScript",
+              doctype: "Builder Page",
+              docname,
+              blockId: block.blockId,
+              blockField: "blockDataScript",
+            },
+            scriptType: "blockDataScript",
+            fileExtension: ".py",
+            displayPath,
+          };
+
+          this.registry.set(uri.toString(), ref);
+          this.contentCache.set(uri.toString(), block.blockDataScript || "");
+
+          blockFolder.children!.push({
+            type: "scriptFile",
+            label: "data script.py",
+            siteId,
+            uri,
+            iconId: "symbol-method",
+          });
+        }
+
+        nodes.push(blockFolder);
       }
 
-      if (block.blockDataScript) {
-        const displayPath = `${pageName}/page blocks/${blockPath}/data script.py`;
-        const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
-
-        const ref: ScriptReference = {
-          siteId,
-          location: {
-            type: "blockScript",
-            doctype: "Builder Page",
-            docname,
-            blockId,
-            blockField: "blockDataScript",
-          },
-          scriptType: "blockDataScript",
-          fileExtension: ".py",
-          displayPath,
-        };
-
-        this.registry.set(uri.toString(), ref);
-        this.contentCache.set(uri.toString(), block.blockDataScript);
-
-        blockNode.children!.push({
-          type: "scriptFile",
-          label: "data script.py",
-          siteId,
-          uri,
-          iconId: "symbol-method",
-        });
-      }
-
-      // Recurse into children - add them as a "children" subfolder or inline
+      // Recurse into children
       if (block.children && block.children.length > 0) {
+        const childPath = block.blockName
+          ? parentPath
+            ? `${parentPath}/${sanitizeName(block.blockName)}`
+            : sanitizeName(block.blockName)
+          : parentPath;
+
         const childNodes = this.extractBlockScripts(
           siteId,
           docname,
           pageName,
           block.children,
-          blockPath,
+          childPath,
         );
-
-        // Add children directly to this block's children (not as a separate folder)
-        // This creates the nested tree structure like Builder
-        if (childNodes.length > 0) {
-          blockNode.children!.push(...childNodes);
-        }
-      }
-
-      // Only add this node if it has scripts or children (don't show empty leaf blocks)
-      if (blockNode.children!.length > 0) {
-        nodes.push(blockNode);
+        nodes.push(...childNodes);
       }
     }
 
     return nodes;
-  }
-
-  /**
-   * Get a display label for a block, similar to how Builder shows it.
-   * Prioritizes: blockName > componentName > element > blockId > unnamed
-   */
-  private getBlockDisplayLabel(block: BlockNode): string {
-    if (block.blockName) {
-      return block.blockName;
-    }
-    if (block.componentName) {
-      return block.componentName;
-    }
-    if (block.element) {
-      return `<${block.element}>`;
-    }
-    if (block.blockId) {
-      return `Block ${block.blockId.slice(0, 8)}`;
-    }
-    return "Unnamed Block";
-  }
-
-  /**
-   * Get an appropriate icon for a block based on its type.
-   */
-  private getBlockIcon(block: BlockNode): string {
-    const componentName = block.componentName?.toLowerCase() || "";
-    const element = block.element?.toLowerCase() || "";
-
-    // Container-type components
-    if (
-      ["container", "section", "div", "box"].some(
-        (t) => componentName.includes(t) || element.includes(t),
-      )
-    ) {
-      return "symbol-namespace";
-    }
-    // Text components
-    if (
-      [
-        "text",
-        "heading",
-        "paragraph",
-        "span",
-        "h1",
-        "h2",
-        "h3",
-        "h4",
-        "h5",
-        "h6",
-        "p",
-      ].some((t) => componentName.includes(t) || element === t)
-    ) {
-      return "symbol-string";
-    }
-    // Image components
-    if (
-      ["image", "img", "picture", "icon"].some(
-        (t) => componentName.includes(t) || element.includes(t),
-      )
-    ) {
-      return "symbol-color";
-    }
-    // Button components
-    if (
-      ["button", "btn"].some(
-        (t) => componentName.includes(t) || element.includes(t),
-      )
-    ) {
-      return "symbol-event";
-    }
-    // Link components
-    if (
-      ["link", "a", "anchor", "nav"].some(
-        (t) => componentName.includes(t) || element.includes(t),
-      )
-    ) {
-      return "link";
-    }
-    // Form components
-    if (
-      ["input", "form", "select", "textarea", "field"].some(
-        (t) => componentName.includes(t) || element.includes(t),
-      )
-    ) {
-      return "symbol-field";
-    }
-    // List components
-    if (
-      ["list", "ul", "ol", "li", "item"].some(
-        (t) => componentName.includes(t) || element.includes(t),
-      )
-    ) {
-      return "list-tree";
-    }
-    // Default
-    return "symbol-structure";
   }
 
   private getIconForExtension(ext: string): string {

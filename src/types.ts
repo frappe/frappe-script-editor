@@ -55,7 +55,7 @@ export type TreeItemType =
   | "page"
   | "clientScriptsFolder"
   | "pageBlocksFolder"
-  | "blockElement" // Visual block element (container, text, image, etc.)
+  | "blockFolder"
   | "scriptFile";
 
 export interface ScriptTreeItemData {
@@ -70,8 +70,6 @@ export interface ScriptTreeItemData {
   contextValue?: string;
   tooltip?: string;
   iconId?: string;
-  /** For block elements, the block ID from builder */
-  blockId?: string;
 }
 
 // ── Frappe API ──────────────────────────────────────────────────────────────
@@ -110,8 +108,6 @@ export interface FrappeBuilderSettingsDoc {
 export interface BlockNode {
   blockId?: string;
   blockName?: string;
-  componentName?: string; // Builder component name (e.g., "Text", "Container", "Image")
-  element?: string; // HTML element tag
   blockClientScript?: string;
   blockDataScript?: string;
   children?: BlockNode[];
