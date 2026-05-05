@@ -14,7 +14,7 @@ import type {
   ScriptReference,
   ScriptTreeItemData,
 } from "./types";
-import { sanitizeName, normalizeUrl } from "./utils";
+import { sanitizeName, normalizeUrl, extractHostname } from "./utils";
 
 /** Custom URI scheme for virtual script files. */
 export const SCHEME = "frappe-builder";
@@ -598,10 +598,17 @@ export class ScriptRegistry {
     blockId?: string,
     blockField?: string,
   ): { uri: vscode.Uri; ref: ScriptReference } | undefined {
+    const incomingHostname = extractHostname(siteUrl);
+
     for (const [uriStr, ref] of this.registry.entries()) {
       const site = this.siteManager.getSites().find((s) => s.id === ref.siteId);
       if (!site) continue;
-      if (normalizeUrl(site.url) !== normalizeUrl(siteUrl)) continue;
+
+      // Try exact normalized URL match first, then fall back to hostname
+      const urlMatch =
+        normalizeUrl(site.url) === normalizeUrl(siteUrl) ||
+        extractHostname(site.url) === incomingHostname;
+      if (!urlMatch) continue;
 
       if (ref.location.type === "docField") {
         if (

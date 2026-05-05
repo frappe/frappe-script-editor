@@ -21,9 +21,27 @@ export function generateId(): string {
   });
 }
 
-/**
- * Normalize a URL by removing trailing slashes.
- */
 export function normalizeUrl(url: string): string {
-  return url.replace(/\/+$/, "").toLowerCase();
+  let normalized = url.trim().toLowerCase();
+  // Add protocol if missing so URL parsing works consistently
+  if (!/^https?:\/\//i.test(normalized)) {
+    normalized = `http://${normalized}`;
+  }
+  return normalized.replace(/\/+$/, "");
+}
+
+export function extractHostname(url: string): string {
+  let normalized = url.trim().toLowerCase();
+  if (!/^https?:\/\//i.test(normalized)) {
+    normalized = `http://${normalized}`;
+  }
+  try {
+    return new URL(normalized).hostname;
+  } catch {
+    // If URL parsing fails, strip protocol/port manually
+    return normalized
+      .replace(/^https?:\/\//, "")
+      .replace(/:\d+.*$/, "")
+      .replace(/\/.*$/, "");
+  }
 }

@@ -408,6 +408,52 @@ export async function activate(
     ),
   );
 
+  // ── URI Handler ─────────────────────────────────────────────────────────
+
+  context.subscriptions.push(
+    vscode.window.registerUriHandler({
+      handleUri(uri: vscode.Uri): vscode.ProviderResult<void> {
+        if (uri.path === "/open-script") {
+          const query = new URLSearchParams(uri.query);
+          const siteUrl = query.get("site");
+          const doctype = query.get("doctype");
+          const docname = query.get("docname");
+          const field = query.get("field") || undefined;
+          const blockId = query.get("blockId") || undefined;
+          const blockField = query.get("blockField") || undefined;
+
+          if (siteUrl && doctype && docname) {
+            const result = registry.findByDocReference(
+              siteUrl,
+              doctype,
+              docname,
+              field,
+              blockId,
+              blockField,
+            );
+
+            if (result) {
+              vscode.workspace.openTextDocument(result.uri).then((doc) => {
+                vscode.window.showTextDocument(doc, { preview: false });
+              });
+            } else {
+              const site = siteManager.findSiteByUrl(siteUrl);
+              if (!site) {
+                vscode.window.showWarningMessage(
+                  `Frappe Script Editor: Site "${siteUrl}" is not configured. Add it from the sidebar.`,
+                );
+              } else {
+                vscode.window.showWarningMessage(
+                  `Frappe Script Editor: Script not found for ${doctype}/${docname}. Try refreshing the scripts list.`,
+                );
+              }
+            }
+          }
+        }
+      },
+    }),
+  );
+
   // ── HTTP Server ─────────────────────────────────────────────────────────
 
   const port = await portfinder.getPortPromise({

@@ -8,7 +8,7 @@
 import * as vscode from "vscode";
 import { FrappeClient } from "./frappeClient";
 import type { FrappeSiteConfig, StoredSiteConfig } from "./types";
-import { generateId, normalizeUrl } from "./utils";
+import { generateId, normalizeUrl, extractHostname } from "./utils";
 
 const SITES_STORAGE_KEY = "frappeScriptEditor.sites";
 const SECRET_PREFIX = "frappeScriptEditor.secret.";
@@ -40,10 +40,14 @@ export class SiteManager {
     return this.sites.find((s) => s.id === id);
   }
 
-  /** Find a site by its URL (normalized). */
   findSiteByUrl(url: string): FrappeSiteConfig | undefined {
     const normalized = normalizeUrl(url);
-    return this.sites.find((s) => normalizeUrl(s.url) === normalized);
+
+    const exact = this.sites.find((s) => normalizeUrl(s.url) === normalized);
+    if (exact) return exact;
+
+    const hostname = extractHostname(url);
+    return this.sites.find((s) => extractHostname(s.url) === hostname);
   }
 
   /**

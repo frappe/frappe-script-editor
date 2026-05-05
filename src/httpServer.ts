@@ -99,6 +99,7 @@ export class HttpServer {
         version: pkg.version || "0.1.0",
         extension: "frappe-script-editor",
         uriScheme: vscode.env.uriScheme,
+        name: vscode.env.appName,
       }),
     );
   }
@@ -126,7 +127,6 @@ export class HttpServer {
         this.outputChannel.appendLine(
           `Open request: ${data.doctype}/${data.docname}/${data.field || data.blockField || ""}`,
         );
-
         // Find the matching script reference
         const result = this.registry.findByDocReference(
           data.site,
