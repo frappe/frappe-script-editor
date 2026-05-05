@@ -18,6 +18,7 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
 
   private registry: ScriptRegistry;
   private tempManager: TempScriptManager | null = null;
+  public currentSiteId: string | null = null;
 
   constructor(registry: ScriptRegistry) {
     this.registry = registry;
@@ -44,7 +45,9 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
     if (!isCollapsible) {
       collapsibleState = vscode.TreeItemCollapsibleState.None;
     } else if (element.type === "site") {
-      collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
+      collapsibleState = this.currentSiteId
+        ? vscode.TreeItemCollapsibleState.Expanded
+        : vscode.TreeItemCollapsibleState.None;
     } else if (element.type === "blockElement") {
       // Block elements show their scripts inline, collapse by default
       collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
@@ -92,6 +95,14 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
       treeItem.tooltip = element.tooltip;
     }
 
+    if (element.type === "site" && !this.currentSiteId) {
+      treeItem.command = {
+        command: "frappeScriptEditor.openSite",
+        title: "Open Site",
+        arguments: [{ siteId: element.siteId }],
+      };
+    }
+
     // For script files, clicking opens the temp file if available
     if (element.type === "scriptFile" && element.uri) {
       const ref = this.registry.getReference(element.uri);
@@ -126,6 +137,12 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
     element?: ScriptTreeItemData,
   ): vscode.ProviderResult<ScriptTreeItemData[]> {
     if (!element) {
+      if (this.currentSiteId) {
+        const siteNode = this.registry
+          .getTreeData()
+          .find((s) => s.siteId === this.currentSiteId);
+        return siteNode?.children || [];
+      }
       // Root level: return site nodes
       return this.registry.getTreeData();
     }

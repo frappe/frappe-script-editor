@@ -95,9 +95,22 @@ export class ScriptRegistry {
       },
       async (progress) => {
         for (const site of sites) {
-          if (site.hasBuilder === false) continue;
-
           progress.report({ message: `Loading ${site.name}…` });
+
+          if (site.hasBuilder === false) {
+            // Add site node without builder
+            const siteNode: ScriptTreeItemData = {
+              type: "site",
+              label: `${site.name}`,
+              siteId: site.id,
+              contextValue: "site",
+              children: [],
+              tooltip:
+                "Builder app is not installed on this site. Click to reload and check again.",
+            };
+            this.treeData.set(site.id, siteNode);
+            continue;
+          }
 
           try {
             const client = await this.siteManager.getClient(site.id);
@@ -126,7 +139,7 @@ export class ScriptRegistry {
   ): Promise<void> {
     const siteNode: ScriptTreeItemData = {
       type: "site",
-      label: `${siteName} (${new URL(siteUrl).hostname})`,
+      label: `${siteName}`,
       siteId,
       contextValue: "site",
       children: [],

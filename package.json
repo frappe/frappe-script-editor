@@ -31,58 +31,88 @@
     "views": {
       "frappe-script-editor": [
         {
-          "type": "webview",
-          "id": "frappe-script-editor-sites",
-          "name": "Sites"
-        },
-        {
           "id": "frappe-script-editor-scripts",
-          "name": "Scripts"
+          "name": "Sites"
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "frappe-script-editor-scripts",
+        "contents": "No sites configured. Add a site to get started.\n[Add Site](command:frappeScriptEditor.addSite)",
+        "when": "frappeScriptEditor.hasSites == false"
+      }
+    ],
     "commands": [
       {
         "command": "frappeScriptEditor.addSite",
         "title": "Frappe Script Editor: Add Site",
+        "shortTitle": "Add Site",
         "icon": "$(add)"
       },
       {
         "command": "frappeScriptEditor.removeSite",
-        "title": "Remove Site",
+        "title": "Frappe Script Editor: Remove Site",
+        "shortTitle": "Remove Site",
         "icon": "$(trash)"
       },
       {
         "command": "frappeScriptEditor.reloadSite",
-        "title": "Reload Site Status",
+        "title": "Frappe Script Editor: Reload Site Status",
+        "shortTitle": "Reload Site Status",
         "icon": "$(refresh)"
       },
       {
         "command": "frappeScriptEditor.refreshScripts",
-        "title": "Refresh Scripts",
+        "title": "Frappe Script Editor: Refresh Scripts",
+        "shortTitle": "Refresh Scripts",
         "icon": "$(refresh)"
       },
       {
         "command": "frappeScriptEditor.collapseFolders",
-        "title": "Collapse Folders",
+        "title": "Frappe Script Editor: Collapse Folders",
+        "shortTitle": "Collapse Folders",
         "icon": "$(collapse-all)"
       },
       {
         "command": "frappeScriptEditor.openScript",
-        "title": "Open Script"
+        "title": "Frappe Script Editor: Open Script",
+        "shortTitle": "Open Script"
+
+      },
+      {
+        "command": "frappeScriptEditor.openSite",
+        "title": "Frappe Script Editor: Open Site",
+        "shortTitle": "Open Site"
+      },
+      {
+        "command": "frappeScriptEditor.goBack",
+        "title": "Frappe Script Editor: Go Back",
+        "shortTitle": "Go Back",
+        "icon": "$(arrow-left)"
       }
     ],
     "menus": {
       "view/title": [
         {
+          "command": "frappeScriptEditor.goBack",
+          "when": "view == frappe-script-editor-scripts && frappeScriptEditor.currentSiteId",
+          "group": "navigation@1"
+        },
+        {
+          "command": "frappeScriptEditor.addSite",
+          "when": "view == frappe-script-editor-scripts && !frappeScriptEditor.currentSiteId",
+          "group": "navigation@2"
+        },
+        {
           "command": "frappeScriptEditor.refreshScripts",
-          "when": "view == frappe-script-editor-scripts",
-          "group": "navigation"
+          "when": "view == frappe-script-editor-scripts && frappeScriptEditor.currentSiteId",
+          "group": "navigation@3"
         },
         {
           "command": "frappeScriptEditor.collapseFolders",
-          "when": "view == frappe-script-editor-scripts",
-          "group": "navigation"
+          "when": "view == frappe-script-editor-scripts && frappeScriptEditor.currentSiteId",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [

@@ -15,7 +15,6 @@ import { HttpServer } from "./httpServer";
 import { ScriptFileSystem } from "./scriptFileSystem";
 import { ScriptRegistry, SCHEME } from "./scriptRegistry";
 import { SiteManager } from "./siteManager";
-import { SiteViewProvider } from "./siteViewProvider";
 import { ScriptTreeProvider } from "./treeProvider";
 import { TempScriptManager } from "./tempScriptManager";
 
@@ -123,33 +122,154 @@ export async function activate(
     }),
   );
 
+  // ── Restore currentSiteId from workspaceState (before tree registration) ──
+
+  const savedSiteId = context.workspaceState.get<string>(
+    "frappeScriptEditor.currentSiteId",
+  );
+  if (savedSiteId) {
+    await vscode.commands.executeCommand(
+      "setContext",
+      "frappeScriptEditor.currentSiteId",
+      savedSiteId,
+    );
+  }
+
   // ── Tree View Provider ──────────────────────────────────────────────────
 
   const treeProvider = new ScriptTreeProvider(registry);
   treeProvider.setTempManager(tempScriptManager);
-  context.subscriptions.push(
-    vscode.window.registerTreeDataProvider(
-      "frappe-script-editor-scripts",
-      treeProvider,
-    ),
-  );
+  if (savedSiteId) {
+    treeProvider.currentSiteId = savedSiteId;
+  }
 
-  // ── Webview View Provider (Site Management) ─────────────────────────────
-
-  const siteViewProvider = new SiteViewProvider(siteManager, registry);
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
-      SiteViewProvider.viewType,
-      siteViewProvider,
-    ),
+  const treeView = vscode.window.createTreeView(
+    "frappe-script-editor-scripts",
+    {
+      treeDataProvider: treeProvider,
+    },
   );
+  context.subscriptions.push(treeView);
+
+  // Helper to update view title based on current site
+  const updateViewTitle = () => {
+    if (treeProvider.currentSiteId) {
+      const site = siteManager.getSite(treeProvider.currentSiteId);
+      treeView.title = site?.name || "Site";
+    } else {
+      treeView.title = "Sites";
+    }
+  };
+
+  // Set initial title
+  updateViewTitle();
+
+  // ── Setup Context Keys ──────────────────────────────────────────────────
+
+  const updateHasSitesContext = () => {
+    vscode.commands.executeCommand(
+      "setContext",
+      "frappeScriptEditor.hasSites",
+      siteManager.getSites().length > 0,
+    );
+  };
+  siteManager.onDidChangeSites(updateHasSitesContext);
+  updateHasSitesContext();
 
   // ── Commands ────────────────────────────────────────────────────────────
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("frappeScriptEditor.addSite", () => {
-      // Focus the sites panel — the webview handles the form
-      vscode.commands.executeCommand("frappe-script-editor-sites.focus");
+    vscode.commands.registerCommand("frappeScriptEditor.addSite", async () => {
+      const name = await vscode.window.showInputBox({
+        prompt: "Enter Site Name",
+        placeHolder: "My Site",
+      });
+      if (!name) return;
+      const url = await vscode.window.showInputBox({
+        prompt: "Enter Site URL",
+        placeHolder: "https://mysite.frappe.cloud",
+      });
+      if (!url) return;
+      const apiKey = await vscode.window.showInputBox({
+        prompt: "Enter API Key",
+        placeHolder: "API key from Frappe user settings",
+      });
+      if (!apiKey) return;
+      const apiSecret = await vscode.window.showInputBox({
+        prompt: "Enter API Secret",
+        placeHolder: "API secret",
+        password: true,
+      });
+      if (!apiSecret) return;
+
+      try {
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: `Adding Site ${name}…`,
+          },
+          async () => {
+            const site = await siteManager.addSite(
+              name,
+              url,
+              apiKey,
+              apiSecret,
+            );
+            if (site.hasBuilder === false) {
+              vscode.window.showWarningMessage(
+                "Site added but Builder app is not installed. Install Builder on this site or click Reload to re-check.",
+              );
+            } else {
+              vscode.window.showInformationMessage(
+                `Site "${site.name}" added successfully!`,
+              );
+            }
+            await registry.loadAll();
+          },
+        );
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`Failed to add site: ${msg}`);
+      }
+    }),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "frappeScriptEditor.openSite",
+      async (item: { siteId?: string }) => {
+        if (item?.siteId) {
+          treeProvider.currentSiteId = item.siteId;
+          await vscode.commands.executeCommand(
+            "setContext",
+            "frappeScriptEditor.currentSiteId",
+            item.siteId,
+          );
+          await context.workspaceState.update(
+            "frappeScriptEditor.currentSiteId",
+            item.siteId,
+          );
+          updateViewTitle();
+          treeProvider.refresh();
+        }
+      },
+    ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("frappeScriptEditor.goBack", async () => {
+      treeProvider.currentSiteId = null;
+      await vscode.commands.executeCommand(
+        "setContext",
+        "frappeScriptEditor.currentSiteId",
+        "",
+      );
+      await context.workspaceState.update(
+        "frappeScriptEditor.currentSiteId",
+        undefined,
+      );
+      updateViewTitle();
+      treeProvider.refresh();
     }),
   );
 
