@@ -1,8 +1,6 @@
 /**
  * Site Manager — handles add/remove/persist of Frappe site connections.
  *
- * Site metadata (minus secrets) lives in VS Code globalState.
- * API secrets are stored in VS Code SecretStorage.
  */
 
 import * as vscode from "vscode";
@@ -21,7 +19,6 @@ export class SiteManager {
   private globalState: vscode.Memento;
   private secrets: vscode.SecretStorage;
 
-  /** Cached FrappeClient per site ID */
   private clients = new Map<string, FrappeClient>();
 
   constructor(context: vscode.ExtensionContext) {
@@ -50,10 +47,6 @@ export class SiteManager {
     return this.sites.find((s) => extractHostname(s.url) === hostname);
   }
 
-  /**
-   * Add a new site. Validates credentials and checks if builder is installed.
-   * Returns the site config on success.
-   */
   async addSite(
     name: string,
     url: string,
@@ -62,12 +55,10 @@ export class SiteManager {
   ): Promise<FrappeSiteConfig> {
     url = normalizeUrl(url);
 
-    // Check for duplicates
     if (this.sites.some((s) => normalizeUrl(s.url) === url)) {
       throw new Error(`Site "${url}" is already configured.`);
     }
 
-    // Validate credentials
     const client = new FrappeClient(url, apiKey, apiSecret);
     try {
       await client.authenticate();
@@ -76,12 +67,11 @@ export class SiteManager {
       throw new Error(`Authentication failed: ${msg}`);
     }
 
-    // Check if builder is installed
     let hasBuilder: boolean | null = null;
     try {
       hasBuilder = await client.checkBuilderInstalled();
     } catch {
-      hasBuilder = null; // couldn't determine
+      hasBuilder = null;
     }
 
     const site: FrappeSiteConfig = {
@@ -92,7 +82,6 @@ export class SiteManager {
       hasBuilder,
     };
 
-    // Store secret
     await this.secrets.store(SECRET_PREFIX + site.id, apiSecret);
 
     this.sites.push(site);
@@ -103,7 +92,6 @@ export class SiteManager {
     return site;
   }
 
-  /** Remove a site by ID. */
   async removeSite(id: string): Promise<void> {
     this.sites = this.sites.filter((s) => s.id !== id);
     this.clients.delete(id);
@@ -112,7 +100,6 @@ export class SiteManager {
     this._onDidChangeSites.fire();
   }
 
-  /** Re-check if builder is installed on a site. */
   async reloadSiteStatus(id: string): Promise<void> {
     const site = this.getSite(id);
     if (!site) return;
@@ -128,10 +115,6 @@ export class SiteManager {
     this._onDidChangeSites.fire();
   }
 
-  /**
-   * Get or create a FrappeClient for a site.
-   * Throws if the secret is not found.
-   */
   async getClient(siteId: string): Promise<FrappeClient> {
     const existing = this.clients.get(siteId);
     if (existing) return existing;

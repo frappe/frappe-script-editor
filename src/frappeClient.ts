@@ -1,8 +1,6 @@
 /**
  * Frappe REST API client.
  *
- * Uses Node.js built-in http/https modules — no external dependencies.
- * Handles authentication via API key + secret token.
  */
 
 import * as http from "http";
@@ -98,7 +96,6 @@ export class FrappeClient {
 
   // ── Public API methods ──────────────────────────────────────────────────
 
-  /** Validate credentials by checking logged-in user. */
   async authenticate(): Promise<string> {
     const res = await this.request<{ message: string }>(
       "GET",
@@ -120,7 +117,6 @@ export class FrappeClient {
     }
   }
 
-  /** Fetch all Builder Page documents (summary only). */
   async getBuilderPages(): Promise<FrappePageSummary[]> {
     const res = await this.request<{ data: FrappePageSummary[] }>(
       "GET",
@@ -129,7 +125,6 @@ export class FrappeClient {
     return res.data || [];
   }
 
-  /** Fetch full Builder Page document including blocks and scripts. */
   async getPageDoc(name: string): Promise<FrappePageDoc> {
     const res = await this.request<{ data: FrappePageDoc }>(
       "GET",
@@ -138,7 +133,6 @@ export class FrappeClient {
     return res.data;
   }
 
-  /** Fetch Builder Settings (single doctype). */
   async getBuilderSettings(): Promise<FrappeBuilderSettingsDoc> {
     const res = await this.request<{ data: FrappeBuilderSettingsDoc }>(
       "GET",
@@ -147,7 +141,6 @@ export class FrappeClient {
     return res.data;
   }
 
-  /** Fetch a Builder Client Script document. */
   async getClientScript(name: string): Promise<FrappeClientScriptDoc> {
     const res = await this.request<{ data: FrappeClientScriptDoc }>(
       "GET",
@@ -156,7 +149,6 @@ export class FrappeClient {
     return res.data;
   }
 
-  /** Update a single field on a document. */
   async updateField(
     doctype: string,
     docname: string,
@@ -170,10 +162,6 @@ export class FrappeClient {
     );
   }
 
-  /**
-   * Fetch the raw blocks JSON for a page (draft_blocks or blocks fallback).
-   * Returns the JSON string and which field it came from.
-   */
   async getPageBlocksRaw(
     name: string,
   ): Promise<{ json: string; field: "draft_blocks" | "blocks" }> {
@@ -184,7 +172,6 @@ export class FrappeClient {
     return { json: doc.blocks || "[]", field: "blocks" };
   }
 
-  /** Update the blocks JSON on a Builder Page. */
   async updatePageBlocks(
     name: string,
     field: "draft_blocks" | "blocks",

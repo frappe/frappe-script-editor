@@ -1,13 +1,3 @@
-/**
- * Frappe Script Editor — VS Code Extension Entry Point
- *
- * Registers all providers, commands, and services:
- *   - FileSystemProvider for frappe-builder:// virtual files
- *   - TreeDataProvider for the sidebar script browser
- *   - WebviewViewProvider for the site management panel
- *   - HTTP server for browser → VS Code communication
- */
-
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as portfinder from "portfinder";
@@ -438,9 +428,10 @@ export async function activate(
 
   // ── URI Handler ─────────────────────────────────────────────────────────
 
-  const openScriptDoc = async (
-    result: { uri: vscode.Uri; ref: import("./types").ScriptReference },
-  ): Promise<void> => {
+  const openScriptDoc = async (result: {
+    uri: vscode.Uri;
+    ref: import("./types").ScriptReference;
+  }): Promise<void> => {
     const cached = registry.getCachedContent(result.uri);
     if (tempScriptManager && cached !== undefined) {
       const tempPath = tempScriptManager.exportScriptSync(
@@ -448,7 +439,10 @@ export async function activate(
         result.ref,
         cached,
       );
-      const cleanUri = getCleanTempUri(tempPath, tempScriptManager.getTempDir());
+      const cleanUri = getCleanTempUri(
+        tempPath,
+        tempScriptManager.getTempDir(),
+      );
       const doc = await vscode.workspace.openTextDocument(cleanUri);
       await vscode.window.showTextDocument(doc, { preview: false });
       outputChannel.appendLine(`Exported to temp (URI handler): ${tempPath}`);
@@ -465,7 +459,10 @@ export async function activate(
     field: string | undefined,
     blockId: string | undefined,
     blockField: string | undefined,
-  ): Promise<{ uri: vscode.Uri; ref: import("./types").ScriptReference } | null> => {
+  ): Promise<{
+    uri: vscode.Uri;
+    ref: import("./types").ScriptReference;
+  } | null> => {
     const site = siteManager.findSiteByUrl(siteUrl);
     if (!site) {
       vscode.window.showWarningMessage(
@@ -478,14 +475,19 @@ export async function activate(
 
     if (doctype === "Builder Page" && docname && blockId && blockField) {
       // Block-level script: update the block JSON, then register in-place
-      const { json, field: blocksField } = await client.getPageBlocksRaw(docname);
+      const { json, field: blocksField } =
+        await client.getPageBlocksRaw(docname);
       const blocks: BlockNode[] = JSON.parse(json);
       const block = findBlockById(blocks, blockId);
       if (!block) {
         throw new Error(`Block "${blockId}" not found in page "${docname}"`);
       }
       (block as Record<string, unknown>)[blockField] = "";
-      await client.updatePageBlocks(docname, blocksField, JSON.stringify(blocks));
+      await client.updatePageBlocks(
+        docname,
+        blocksField,
+        JSON.stringify(blocks),
+      );
 
       // Derive labels for tree insertion
       const pageDoc = await client.getPageDoc(docname);
@@ -588,7 +590,15 @@ export async function activate(
 
         outputChannel.appendLine("URI Handler:");
         outputChannel.appendLine(
-          JSON.stringify({ query, siteUrl, doctype, docname, field, blockId, blockField }),
+          JSON.stringify({
+            query,
+            siteUrl,
+            doctype,
+            docname,
+            field,
+            blockId,
+            blockField,
+          }),
         );
 
         if (!siteUrl || !doctype || !docname) return;

@@ -2,9 +2,7 @@
  * Temp Script Manager — Exports Frappe Script Editor scripts to a cross-platform temp directory.
  *
  * This enables AI agents to access script files via real filesystem paths.
- * - Auto-exports scripts to os.tmpdir()/frappe-scripts/ on document open
- * - Auto-syncs changes back to Frappe on file save
- * - Cleanup on extension deactivation
+ *
  */
 
 import * as vscode from "vscode";
@@ -40,7 +38,6 @@ export class TempScriptManager {
   getTempPath(siteId: string, displayPath: string): string {
     const key = `${siteId}:${displayPath}`;
 
-    // Use existing unique ID if already generated for this key
     let uniqueId = this.uniqueIdMap.get(key);
     if (!uniqueId) {
       uniqueId = this.generateUniqueId();
@@ -65,7 +62,6 @@ export class TempScriptManager {
 
     const cleanScriptFile = scriptFile.replace(/ /g, "-").replace(/_/g, "-");
 
-    // Build clean path: /var/page-name/unique-id/block-name/client-script.js
     return path.join(
       this.tempDir,
       pageName,

@@ -1,17 +1,14 @@
 import * as vscode from "vscode";
 
-// ── Site Configuration ──────────────────────────────────────────────────────
-
 export interface FrappeSiteConfig {
   id: string;
   name: string;
   url: string;
   apiKey: string;
-  // apiSecret is stored separately in SecretStorage
-  hasBuilder: boolean | null; // null = not yet checked
+
+  hasBuilder: boolean | null;
 }
 
-/** Persisted site config (without secret) */
 export interface StoredSiteConfig {
   id: string;
   name: string;
@@ -19,8 +16,6 @@ export interface StoredSiteConfig {
   apiKey: string;
   hasBuilder: boolean | null;
 }
-
-// ── Script References ───────────────────────────────────────────────────────
 
 export type ScriptType =
   | "clientScript"
@@ -34,7 +29,7 @@ export type ScriptLocation =
       type: "blockScript";
       doctype: "Builder Page";
       docname: string;
-      /** Which blocks field to use: draft_blocks → blocks fallback */
+
       blockId: string;
       blockField: "blockClientScript" | "blockDataScript";
     };
@@ -43,11 +38,9 @@ export interface ScriptReference {
   siteId: string;
   location: ScriptLocation;
   scriptType: ScriptType;
-  fileExtension: string; // ".js" | ".py" | ".html" | ".css"
-  displayPath: string; // human-readable path shown in tree
+  fileExtension: string;
+  displayPath: string;
 }
-
-// ── Tree View ───────────────────────────────────────────────────────────────
 
 export type TreeItemType =
   | "site"
@@ -64,17 +57,15 @@ export interface ScriptTreeItemData {
   siteId: string;
   siteUrl?: string;
   hasBuilder?: boolean | null;
-  /** For file nodes, the URI to open */
+
   uri?: vscode.Uri;
-  /** For collapsible nodes, child items */
+
   children?: ScriptTreeItemData[];
-  /** contextValue for menu contributions */
+
   contextValue?: string;
   tooltip?: string;
   iconId?: string;
 }
-
-// ── Frappe API ──────────────────────────────────────────────────────────────
 
 export interface FrappePageSummary {
   name: string;
@@ -116,10 +107,8 @@ export interface BlockNode {
   [key: string]: unknown;
 }
 
-// ── HTTP Server ─────────────────────────────────────────────────────────────
-
 export interface OpenScriptRequest {
-  site: string; // site URL
+  site: string;
   doctype: string;
   docname: string;
   field?: string;

@@ -17,26 +17,20 @@ import type {
 } from "./types";
 import { sanitizeName, normalizeUrl, extractHostname } from "./utils";
 
-/** Custom URI scheme for virtual script files. */
 export const SCHEME = "frappe-builder";
 
 export class ScriptRegistry {
   private _onDidChange = new vscode.EventEmitter<void>();
   readonly onDidChange = this._onDidChange.event;
 
-  /** URI string → ScriptReference */
   private registry = new Map<string, ScriptReference>();
 
-  /** siteId → tree data (for TreeDataProvider) */
   private treeData = new Map<string, ScriptTreeItemData>();
 
-  /** Cache of file contents: URI string → content string */
   private contentCache = new Map<string, string>();
 
-  /** Promise that resolves when loading is complete */
   private loadingPromise: Promise<void> = Promise.resolve();
 
-  /** Flag to track if initial load has started */
   private isLoading = false;
 
   private siteManager: SiteManager;
@@ -45,12 +39,10 @@ export class ScriptRegistry {
     this.siteManager = siteManager;
   }
 
-  /** Wait for any pending load to complete */
   async whenLoaded(): Promise<void> {
     await this.loadingPromise;
   }
 
-  /** Check if registry is currently loading */
   get isCurrentlyLoading(): boolean {
     return this.isLoading;
   }
@@ -85,10 +77,6 @@ export class ScriptRegistry {
     this.contentCache.set(uriString, content);
   }
 
-  /**
-   * Load/reload scripts for a single site.
-   * Updates only that site's data without clearing other sites.
-   */
   async reloadSite(siteId: string): Promise<void> {
     const site = this.siteManager.getSite(siteId);
     if (!site) return;
@@ -212,9 +200,6 @@ export class ScriptRegistry {
     this._onDidChange.fire();
   }
 
-  /**
-   * Load/reload scripts for a single site.
-   */
   async loadSite(
     siteId: string,
     siteName: string,
@@ -583,7 +568,6 @@ export class ScriptRegistry {
         nodes.push(blockFolder);
       }
 
-      // Recurse into children
       if (block.children && block.children.length > 0) {
         const childPath = block.blockName
           ? parentPath
@@ -707,9 +691,6 @@ export class ScriptRegistry {
     return { uri, ref };
   }
 
-  /**
-   * Recursively search the block tree for a block with the given blockId.
-   */
   private findBlockInTree(
     blocks: BlockNode[],
     blockId: string,

@@ -1,10 +1,3 @@
-/**
- * Tree Data Provider for the sidebar Scripts view.
- *
- * Displays a hierarchical view of all scripts from all configured sites:
- *
- */
-
 import * as vscode from "vscode";
 import type { ScriptRegistry } from "./scriptRegistry";
 import type { ScriptTreeItemData } from "./types";
@@ -55,10 +48,8 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
 
     const treeItem = new vscode.TreeItem(element.label, collapsibleState);
 
-    // Set context value for context menus
     treeItem.contextValue = element.contextValue || element.type;
 
-    // Set icon
     if (element.iconId) {
       treeItem.iconPath = new vscode.ThemeIcon(element.iconId);
     } else {
@@ -82,7 +73,6 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
       }
     }
 
-    // Set tooltip
     if (element.tooltip) {
       treeItem.tooltip = element.tooltip;
     }
@@ -157,7 +147,6 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
           .find((s) => s.siteId === this.currentSiteId);
         return siteNode?.children || [];
       }
-      // Root level: return site nodes
       return this.registry.getTreeData();
     }
 

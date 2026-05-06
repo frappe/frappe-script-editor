@@ -1,10 +1,6 @@
 /**
  * FileSystemProvider for clean temp file URIs.
  *
- * Maps frappe-temp:// URIs to actual temp files on disk.
- * This allows showing clean paths like:
- * frappe-temp://page-name/unique-id/block-name/client-script.js
- * instead of full OS temp paths.
  */
 
 import * as vscode from "vscode";

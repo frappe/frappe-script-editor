@@ -32,17 +32,13 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
     this.outputChannel = outputChannel;
   }
 
-  // ── FileSystemProvider implementation ─────────────────────────────────
-
   watch(): vscode.Disposable {
-    // No-op: we don't watch for remote changes
     return new vscode.Disposable(() => {});
   }
 
   stat(uri: vscode.Uri): vscode.FileStat {
     const ref = this.registry.getReference(uri);
     if (!ref) {
-      // Could be a directory
       if (this.isDirectoryUri(uri)) {
         return {
           type: vscode.FileType.Directory,
@@ -64,7 +60,6 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
   }
 
   readDirectory(_uri: vscode.Uri): [string, vscode.FileType][] {
-    // Tree view handles navigation; this is a minimal implementation
     return [];
   }
 
@@ -74,13 +69,11 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
       throw vscode.FileSystemError.FileNotFound(uri);
     }
 
-    // Return cached content if available
     const cached = this.registry.getCachedContent(uri);
     if (cached !== undefined) {
       return Buffer.from(cached, "utf8");
     }
 
-    // Otherwise, fetch from Frappe
     try {
       const client = await this.siteManager.getClient(ref.siteId);
       let content = "";
@@ -204,7 +197,6 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
   // ── Helpers ───────────────────────────────────────────────────────────
 
   private isDirectoryUri(uri: vscode.Uri): boolean {
-    // If the path has no file extension, treat it as a directory
     const path = uri.path;
     const lastSegment = path.split("/").pop() || "";
     return !lastSegment.includes(".");
@@ -214,7 +206,10 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
 /**
  * Recursively search the block tree for a block with the given blockId.
  */
-export function findBlockById(blocks: BlockNode[], blockId: string): BlockNode | null {
+export function findBlockById(
+  blocks: BlockNode[],
+  blockId: string,
+): BlockNode | null {
   for (const block of blocks) {
     if (!block) continue;
     if (block.blockId === blockId) return block;
