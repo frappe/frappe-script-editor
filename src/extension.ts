@@ -13,6 +13,7 @@ import {
   getCleanTempUri,
 } from "./tempFileSystemProvider";
 import type { BlockNode } from "./types";
+import { sanitizeName } from "./utils";
 
 let httpServer: HttpServer | null = null;
 let tempScriptManager: TempScriptManager | null = null;
@@ -492,7 +493,6 @@ export async function activate(
       // Derive labels for tree insertion
       const pageDoc = await client.getPageDoc(docname);
       const pageLabel = pageDoc.page_title || pageDoc.page_name || pageDoc.name;
-      const { sanitizeName } = await import("./utils");
       const pageTitleSlug = sanitizeName(pageLabel);
 
       return registry.registerBlockScript(
@@ -513,7 +513,6 @@ export async function activate(
       await client.updateField(doctype, docname, field, "");
 
       const pageLabel = pageDoc.page_title || pageDoc.page_name || pageDoc.name;
-      const { sanitizeName } = await import("./utils");
       const pageTitleSlug = sanitizeName(pageLabel);
 
       return registry.registerDocFieldScript(

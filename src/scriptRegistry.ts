@@ -43,10 +43,6 @@ export class ScriptRegistry {
     await this.loadingPromise;
   }
 
-  get isCurrentlyLoading(): boolean {
-    return this.isLoading;
-  }
-
   // ── Public API ──────────────────────────────────────────────────────────
 
   getReference(uri: vscode.Uri): ScriptReference | undefined {
@@ -63,10 +59,6 @@ export class ScriptRegistry {
 
   setCachedContent(uri: vscode.Uri, content: string): void {
     this.contentCache.set(uri.toString(), content);
-  }
-
-  getAllReferences(): Iterable<[string, ScriptReference]> {
-    return this.registry.entries();
   }
 
   getCachedContentByUriString(uriString: string): string | undefined {
@@ -379,34 +371,33 @@ export class ScriptRegistry {
     }
 
     // ── Data script (single file) ───────────────────────────────────────
-    if (doc.page_data_script) {
-      const displayPath = `${pageTitleSlug}/data script.py`;
-      const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
-      const ref: ScriptReference = {
-        siteId,
-        location: {
-          type: "docField",
-          doctype: "Builder Page",
-          docname: doc.name,
-          fieldName: "page_data_script",
-        },
-        scriptType: "pageDataScript",
-        fileExtension: ".py",
-        displayPath,
-      };
+    const displayPath = `${pageTitleSlug}/data script.py`;
+    const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
-      this.registry.set(uri.toString(), ref);
-      this.contentCache.set(uri.toString(), doc.page_data_script);
+    const ref: ScriptReference = {
+      siteId,
+      location: {
+        type: "docField",
+        doctype: "Builder Page",
+        docname: doc.name,
+        fieldName: "page_data_script",
+      },
+      scriptType: "pageDataScript",
+      fileExtension: ".py",
+      displayPath,
+    };
 
-      pageNode.children!.push({
-        type: "scriptFile",
-        label: "data script.py",
-        siteId,
-        uri,
-        iconId: "symbol-method",
-      });
-    }
+    this.registry.set(uri.toString(), ref);
+    this.contentCache.set(uri.toString(), doc.page_data_script || "");
+
+    pageNode.children!.push({
+      type: "scriptFile",
+      label: "data script.py",
+      siteId,
+      uri,
+      iconId: "symbol-method",
+    });
 
     // ── Page blocks (with scripts) ──────────────────────────────────────
     const blocksJson = doc.draft_blocks || doc.blocks;
@@ -438,7 +429,6 @@ export class ScriptRegistry {
     // ── Head code & Body code ───────────────────────────────────────────
     for (const field of ["head_html", "body_html"] as const) {
       const value = doc[field] as string | null;
-      if (!value) continue;
 
       const displayName = field === "head_html" ? "Head code" : "Body code";
       const displayPath = `${pageTitleSlug}/${displayName}.html`;
@@ -458,7 +448,7 @@ export class ScriptRegistry {
       };
 
       this.registry.set(uri.toString(), ref);
-      this.contentCache.set(uri.toString(), value);
+      this.contentCache.set(uri.toString(), value || "");
 
       pageNode.children!.push({
         type: "scriptFile",
