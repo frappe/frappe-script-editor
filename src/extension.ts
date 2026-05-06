@@ -337,6 +337,7 @@ export async function activate(
             item.siteId,
           );
           updateViewTitle();
+          await registry.loadAll(item.siteId);
           treeProvider.refresh();
         }
       },
@@ -374,7 +375,7 @@ export async function activate(
             );
             if (confirm === "Remove") {
               await siteManager.removeSite(item.siteId);
-              await registry.loadAll();
+              await registry.loadSites();
             }
           }
         }
@@ -409,7 +410,12 @@ export async function activate(
     vscode.commands.registerCommand(
       "frappeScriptEditor.refreshScripts",
       async () => {
-        await registry.loadAll();
+        const currentSiteId = treeProvider.currentSiteId;
+        if (currentSiteId) {
+          await registry.loadAll(currentSiteId);
+        } else {
+          await registry.loadSites();
+        }
         treeProvider.refresh();
       },
     ),
@@ -650,13 +656,17 @@ export async function activate(
 
   // ── Initial load ────────────────────────────────────────────────────────
 
-  // Load scripts from all configured sites in background
+  // Load site info only (scripts loaded on-demand per site)
   const sites = siteManager.getSites();
   if (sites.length > 0) {
-    registry.loadAll().catch((err: unknown) => {
-      const msg = err instanceof Error ? err.message : String(err);
-      outputChannel.appendLine(`Initial load failed: ${msg}`);
-    });
+    await registry.loadSites();
+    if (savedSiteId) {
+      const savedSite = siteManager.getSite(savedSiteId);
+      if (savedSite && savedSite.hasBuilder !== false) {
+        await registry.loadAll(savedSiteId);
+      }
+    }
+    treeProvider.refresh();
   }
 
   outputChannel.appendLine(

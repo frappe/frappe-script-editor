@@ -50,7 +50,17 @@ export class ScriptRegistry {
   }
 
   getTreeData(): ScriptTreeItemData[] {
-    return Array.from(this.treeData.values());
+    const sites = this.siteManager.getSites();
+    const siteIds = sites.map((s) => s.id);
+    const nodes = Array.from(this.treeData.values());
+
+    nodes.sort((a, b) => {
+      const idxA = siteIds.indexOf(a.siteId!);
+      const idxB = siteIds.indexOf(b.siteId!);
+      return idxA - idxB;
+    });
+
+    return nodes;
   }
 
   getCachedContent(uri: vscode.Uri): string | undefined {
@@ -133,17 +143,72 @@ export class ScriptRegistry {
     }
   }
 
-  /**
-   * Load/reload all scripts for all configured sites.
-   * Shows progress notification during loading.
-   */
-  async loadAll(): Promise<void> {
-    this.isLoading = true;
-    this.registry.clear();
-    this.treeData.clear();
-    this.contentCache.clear();
-
+  async loadSites(): Promise<void> {
     const sites = this.siteManager.getSites();
+
+    this.loadingPromise = Promise.resolve(
+      vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "Frappe Script Editor: Loading sites…",
+          cancellable: false,
+        },
+        async (progress) => {
+          for (const site of sites) {
+            progress.report({ message: `Loading ${site.name}…` });
+
+            const existingNode = this.treeData.get(site.id);
+            if (
+              existingNode &&
+              existingNode.children &&
+              existingNode.children.length > 0
+            ) {
+              existingNode.hasBuilder = site.hasBuilder;
+              existingNode.tooltip =
+                site.hasBuilder === false
+                  ? "Builder app is not installed on this site. Click to reload and check again."
+                  : undefined;
+              continue;
+            }
+
+            const siteNode: ScriptTreeItemData = {
+              type: "site",
+              label: `${site.name}`,
+              siteId: site.id,
+              siteUrl: site.url,
+              hasBuilder: site.hasBuilder,
+              contextValue: "site",
+              children: [],
+              tooltip:
+                site.hasBuilder === false
+                  ? "Builder app is not installed on this site. Click to reload and check again."
+                  : undefined,
+            };
+            this.treeData.set(site.id, siteNode);
+          }
+        },
+      ),
+    );
+
+    await this.loadingPromise;
+    this._onDidChange.fire();
+  }
+
+  async loadAll(siteId?: string): Promise<void> {
+    this.isLoading = true;
+
+    if (!siteId) {
+      this.registry.clear();
+      this.treeData.clear();
+      this.contentCache.clear();
+    } else {
+      this.clearSiteRegistryData(siteId);
+      this.treeData.delete(siteId);
+    }
+
+    const sites = siteId
+      ? [this.siteManager.getSite(siteId)].filter(Boolean)
+      : this.siteManager.getSites();
 
     this.loadingPromise = Promise.resolve(
       vscode.window.withProgress(
@@ -154,6 +219,7 @@ export class ScriptRegistry {
         },
         async (progress) => {
           for (const site of sites) {
+            if (!site) continue;
             progress.report({ message: `Loading ${site.name}…` });
 
             if (site.hasBuilder === false) {
