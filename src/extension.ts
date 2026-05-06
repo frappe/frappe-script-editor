@@ -438,207 +438,172 @@ export async function activate(
 
   // ── URI Handler ─────────────────────────────────────────────────────────
 
+  const openScriptDoc = async (
+    result: { uri: vscode.Uri; ref: import("./types").ScriptReference },
+  ): Promise<void> => {
+    const cached = registry.getCachedContent(result.uri);
+    if (tempScriptManager && cached !== undefined) {
+      const tempPath = tempScriptManager.exportScriptSync(
+        result.uri,
+        result.ref,
+        cached,
+      );
+      const cleanUri = getCleanTempUri(tempPath, tempScriptManager.getTempDir());
+      const doc = await vscode.workspace.openTextDocument(cleanUri);
+      await vscode.window.showTextDocument(doc, { preview: false });
+      outputChannel.appendLine(`Exported to temp (URI handler): ${tempPath}`);
+    } else {
+      const doc = await vscode.workspace.openTextDocument(result.uri);
+      await vscode.window.showTextDocument(doc, { preview: false });
+    }
+  };
+
+  const createMissingScript = async (
+    siteUrl: string,
+    doctype: string,
+    docname: string,
+    field: string | undefined,
+    blockId: string | undefined,
+    blockField: string | undefined,
+  ): Promise<boolean> => {
+    const site = siteManager.findSiteByUrl(siteUrl);
+    if (!site) {
+      vscode.window.showWarningMessage(
+        `Frappe Script Editor: Site "${siteUrl}" is not configured. Add it from the sidebar.`,
+      );
+      return false;
+    }
+
+    const client = await siteManager.getClient(site.id);
+    let created = false;
+
+    if (doctype === "Builder Page" && docname && blockId && blockField) {
+      const { json, field } = await client.getPageBlocksRaw(docname);
+      const blocks: BlockNode[] = JSON.parse(json);
+      const block = findBlockById(blocks, blockId);
+      if (!block) {
+        throw new Error(`Block "${blockId}" not found in page "${docname}"`);
+      }
+      (block as Record<string, unknown>)[blockField] = "";
+      await client.updatePageBlocks(docname, field, JSON.stringify(blocks));
+      created = true;
+    } else if (doctype === "Builder Page" && docname && field) {
+      const page = await client.getPageDoc(docname);
+      if (!page) {
+        throw new Error(`Builder Page "${docname}" not found`);
+      }
+      await client.updateField(doctype, docname, field, "");
+      created = true;
+    }
+
+    if (created) {
+      await registry.reloadSite(site.id);
+      return true;
+    }
+    return false;
+  };
+
+  const findAndOpenScript = async (
+    siteUrl: string,
+    doctype: string,
+    docname: string,
+    field: string | undefined,
+    blockId: string | undefined,
+    blockField: string | undefined,
+  ): Promise<boolean> => {
+    const result = registry.findByDocReference(
+      siteUrl,
+      doctype,
+      docname,
+      field,
+      blockId,
+      blockField,
+    );
+
+    if (result) {
+      await openScriptDoc(result);
+      return true;
+    }
+
+    outputChannel.appendLine(
+      `URI Handler: script not found. blockId=${blockId} blockField=${blockField} field=${field}`,
+    );
+
+    const created = await createMissingScript(
+      siteUrl,
+      doctype,
+      docname,
+      field,
+      blockId,
+      blockField,
+    );
+
+    if (created) {
+      const retryResult = registry.findByDocReference(
+        siteUrl,
+        doctype,
+        docname,
+        field,
+        blockId,
+        blockField,
+      );
+      if (retryResult) {
+        await openScriptDoc(retryResult);
+        outputChannel.appendLine(
+          `Created and opened new script: ${doctype}/${docname}`,
+        );
+        return true;
+      }
+    }
+
+    return false;
+  };
+
   context.subscriptions.push(
     vscode.window.registerUriHandler({
       handleUri(uri: vscode.Uri): vscode.ProviderResult<void> {
-        if (uri.path === "/open-script") {
-          const query = new URLSearchParams(uri.query);
-          const siteUrl = query.get("site");
-          const doctype = query.get("doctype");
-          const docname = query.get("docname");
-          const field = query.get("field") || undefined;
-          const blockId = query.get("blockId") || undefined;
-          const blockField = query.get("blockField") || undefined;
-          outputChannel.appendLine("URI Handler:");
-          outputChannel.appendLine(
-            JSON.stringify({
-              query,
+        if (uri.path !== "/open-script") return;
+
+        const query = new URLSearchParams(uri.query);
+        const siteUrl = query.get("site");
+        const doctype = query.get("doctype");
+        const docname = query.get("docname");
+        const field = query.get("field") || undefined;
+        const blockId = query.get("blockId") || undefined;
+        const blockField = query.get("blockField") || undefined;
+
+        outputChannel.appendLine("URI Handler:");
+        outputChannel.appendLine(
+          JSON.stringify({ query, siteUrl, doctype, docname, field, blockId, blockField }),
+        );
+
+        if (!siteUrl || !doctype || !docname) return;
+
+        return vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: "Opening script from Frappe…",
+            cancellable: false,
+          },
+          async () => {
+            await registry.whenLoaded();
+
+            const found = await findAndOpenScript(
               siteUrl,
               doctype,
               docname,
               field,
               blockId,
               blockField,
-            }),
-          );
-          if (siteUrl && doctype && docname) {
-            return vscode.window.withProgress(
-              {
-                location: vscode.ProgressLocation.Notification,
-                title: "Opening script from Frappe…",
-                cancellable: false,
-              },
-              async () => {
-                await registry.whenLoaded();
-
-                const result = registry.findByDocReference(
-                  siteUrl,
-                  doctype,
-                  docname,
-                  field,
-                  blockId,
-                  blockField,
-                );
-
-                if (result) {
-                  if (tempScriptManager) {
-                    const cached = registry.getCachedContent(result.uri);
-                    if (cached !== undefined) {
-                      const tempPath = tempScriptManager.exportScriptSync(
-                        result.uri,
-                        result.ref,
-                        cached,
-                      );
-                      const cleanUri = getCleanTempUri(
-                        tempPath,
-                        tempScriptManager.getTempDir(),
-                      );
-                      const doc =
-                        await vscode.workspace.openTextDocument(cleanUri);
-                      await vscode.window.showTextDocument(doc, {
-                        preview: false,
-                      });
-                      outputChannel.appendLine(
-                        `Exported to temp (URI handler): ${tempPath}`,
-                      );
-                    } else {
-                      const doc = await vscode.workspace.openTextDocument(
-                        result.uri,
-                      );
-                      await vscode.window.showTextDocument(doc, {
-                        preview: false,
-                      });
-                    }
-                  } else {
-                    const doc = await vscode.workspace.openTextDocument(
-                      result.uri,
-                    );
-                    await vscode.window.showTextDocument(doc, {
-                      preview: false,
-                    });
-                  }
-                } else {
-                  outputChannel.appendLine(
-                    `URI Handler: script not found. blockId=${blockId} blockField=${blockField} field=${field}`,
-                  );
-                  const site = siteManager.findSiteByUrl(siteUrl);
-                  if (!site) {
-                    vscode.window.showWarningMessage(
-                      `Frappe Script Editor: Site "${siteUrl}" is not configured. Add it from the sidebar.`,
-                    );
-                  } else {
-                    let created = false;
-                    try {
-                      const client = await siteManager.getClient(site.id);
-                      if (
-                        doctype === "Builder Page" &&
-                        docname &&
-                        blockId &&
-                        blockField
-                      ) {
-                        const { json, field } =
-                          await client.getPageBlocksRaw(docname);
-
-                        const blocks: BlockNode[] = JSON.parse(json);
-
-                        const block = findBlockById(blocks, blockId);
-
-                        if (!block) {
-                          throw new Error(
-                            `Block "${blockId}" not found in page "${docname}"`,
-                          );
-                        }
-                        (block as Record<string, unknown>)[blockField] = "";
-
-                        try {
-                          await client.updatePageBlocks(
-                            docname,
-                            field,
-                            JSON.stringify(blocks),
-                          );
-                        } catch (e) {
-                          outputChannel.appendLine(
-                            `URI Handler: updatePageBlocks ERROR: ${e}`,
-                          );
-                          throw e;
-                        }
-                        created = true;
-                      } else if (
-                        doctype === "Builder Page" &&
-                        docname &&
-                        field
-                      ) {
-                        const page = await client.getPageDoc(docname);
-                        if (!page) {
-                          throw new Error(
-                            `Builder Page "${docname}" not found`,
-                          );
-                        }
-                        await client.updateField(doctype, docname, field, "");
-                        created = true;
-                      }
-
-                      if (created) {
-                        await registry.reloadSite(site.id);
-                        const retryResult = registry.findByDocReference(
-                          siteUrl,
-                          doctype,
-                          docname,
-                          field,
-                          blockId,
-                          blockField,
-                        );
-
-                        if (retryResult) {
-                          const cached = registry.getCachedContent(
-                            retryResult.uri,
-                          );
-                          if (tempScriptManager && cached !== undefined) {
-                            const tempPath = tempScriptManager.exportScriptSync(
-                              retryResult.uri,
-                              retryResult.ref,
-                              cached,
-                            );
-                            const cleanUri = getCleanTempUri(
-                              tempPath,
-                              tempScriptManager.getTempDir(),
-                            );
-                            const doc =
-                              await vscode.workspace.openTextDocument(cleanUri);
-                            await vscode.window.showTextDocument(doc, {
-                              preview: false,
-                            });
-                          } else {
-                            const doc = await vscode.workspace.openTextDocument(
-                              retryResult.uri,
-                            );
-                            await vscode.window.showTextDocument(doc, {
-                              preview: false,
-                            });
-                          }
-                          outputChannel.appendLine(
-                            `Created and opened new script: ${doctype}/${docname}`,
-                          );
-                          return;
-                        }
-                      }
-                    } catch (err) {
-                      const msg =
-                        err instanceof Error ? err.message : String(err);
-                      outputChannel.appendLine(
-                        `Failed to create script: ${msg}`,
-                      );
-                    }
-
-                    vscode.window.showWarningMessage(
-                      `Frappe Script Editor: Script not found for ${doctype}/${docname}. Try refreshing the scripts list.`,
-                    );
-                  }
-                }
-              },
             );
-          }
-        }
+
+            if (!found) {
+              vscode.window.showWarningMessage(
+                `Frappe Script Editor: Script not found for ${doctype}/${docname}. Try refreshing the scripts list.`,
+              );
+            }
+          },
+        );
       },
     }),
   );
