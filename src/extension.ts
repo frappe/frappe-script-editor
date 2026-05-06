@@ -450,31 +450,75 @@ export async function activate(
           const blockField = query.get("blockField") || undefined;
 
           if (siteUrl && doctype && docname) {
-            const result = registry.findByDocReference(
-              siteUrl,
-              doctype,
-              docname,
-              field,
-              blockId,
-              blockField,
-            );
+            return vscode.window.withProgress(
+              {
+                location: vscode.ProgressLocation.Notification,
+                title: "Opening script from Frappe…",
+                cancellable: false,
+              },
+              async () => {
+                const result = registry.findByDocReference(
+                  siteUrl,
+                  doctype,
+                  docname,
+                  field,
+                  blockId,
+                  blockField,
+                );
 
-            if (result) {
-              vscode.workspace.openTextDocument(result.uri).then((doc) => {
-                vscode.window.showTextDocument(doc, { preview: false });
-              });
-            } else {
-              const site = siteManager.findSiteByUrl(siteUrl);
-              if (!site) {
-                vscode.window.showWarningMessage(
-                  `Frappe Script Editor: Site "${siteUrl}" is not configured. Add it from the sidebar.`,
-                );
-              } else {
-                vscode.window.showWarningMessage(
-                  `Frappe Script Editor: Script not found for ${doctype}/${docname}. Try refreshing the scripts list.`,
-                );
-              }
-            }
+                if (result) {
+                  // Export to temp file and open with clean URI (consistent with tree click)
+                  if (tempScriptManager) {
+                    const cached = registry.getCachedContent(result.uri);
+                    if (cached !== undefined) {
+                      const tempPath = tempScriptManager.exportScriptSync(
+                        result.uri,
+                        result.ref,
+                        cached,
+                      );
+                      const cleanUri = getCleanTempUri(
+                        tempPath,
+                        tempScriptManager.getTempDir(),
+                      );
+                      const doc =
+                        await vscode.workspace.openTextDocument(cleanUri);
+                      await vscode.window.showTextDocument(doc, {
+                        preview: false,
+                      });
+                      outputChannel.appendLine(
+                        `Exported to temp (URI handler): ${tempPath}`,
+                      );
+                    } else {
+                      // Fallback: open original URI if no cached content
+                      const doc = await vscode.workspace.openTextDocument(
+                        result.uri,
+                      );
+                      await vscode.window.showTextDocument(doc, {
+                        preview: false,
+                      });
+                    }
+                  } else {
+                    const doc = await vscode.workspace.openTextDocument(
+                      result.uri,
+                    );
+                    await vscode.window.showTextDocument(doc, {
+                      preview: false,
+                    });
+                  }
+                } else {
+                  const site = siteManager.findSiteByUrl(siteUrl);
+                  if (!site) {
+                    vscode.window.showWarningMessage(
+                      `Frappe Script Editor: Site "${siteUrl}" is not configured. Add it from the sidebar.`,
+                    );
+                  } else {
+                    vscode.window.showWarningMessage(
+                      `Frappe Script Editor: Script not found for ${doctype}/${docname}. Try refreshing the scripts list.`,
+                    );
+                  }
+                }
+              },
+            );
           }
         }
       },

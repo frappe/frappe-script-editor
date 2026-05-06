@@ -1,0 +1,35 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "yarn: compile",
+            "type": "shell",
+            "command": "yarn",
+            "args": ["compile"],
+            "group": "build",
+            "presentation": {
+                "panel": "shared",
+                "reveal": "silent",
+                "clear": false
+            },
+            "problemMatcher": ["$tsc"]
+        },
+        {
+            "label": "yarn: watch",
+            "type": "shell",
+            "command": "yarn",
+            "args": ["watch"],
+            "isBackground": true,
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "panel": "shared",
+                "reveal": "never",
+                "clear": false
+            },
+            "problemMatcher": ["$tsc-watch"]
+        }
+    ]
+}
