@@ -17,6 +17,11 @@ import { ScriptRegistry, SCHEME } from "./scriptRegistry";
 import { SiteManager } from "./siteManager";
 import { ScriptTreeProvider } from "./treeProvider";
 import { TempScriptManager } from "./tempScriptManager";
+import {
+  TempFileSystemProvider,
+  TEMP_SCHEME,
+  getCleanTempUri,
+} from "./tempFileSystemProvider";
 
 let httpServer: HttpServer | null = null;
 let tempScriptManager: TempScriptManager | null = null;
@@ -51,6 +56,16 @@ export async function activate(
   tempScriptManager.cleanup();
   tempScriptManager.ensureTempDir();
 
+  // ── Temp FileSystem Provider for clean URIs ────────────────────────────────────────
+
+  const tempFileSystem = new TempFileSystemProvider(tempScriptManager);
+  context.subscriptions.push(
+    vscode.workspace.registerFileSystemProvider(TEMP_SCHEME, tempFileSystem, {
+      isCaseSensitive: true,
+      isReadonly: false,
+    }),
+  );
+
   // ── Auto-save temp files on document open ─────────────────────────────────────────
 
   context.subscriptions.push(
@@ -70,9 +85,13 @@ export async function activate(
           ref,
           cached,
         );
+        const cleanUri = getCleanTempUri(
+          realPath,
+          tempScriptManager.getTempDir(),
+        );
         outputChannel.appendLine(`Exported to temp: ${realPath}`);
         vscode.window.setStatusBarMessage(
-          `Frappe: Exported to ${realPath}`,
+          `Frappe: Exported to ${cleanUri.toString()}`,
           5000,
         );
       } catch (err: unknown) {
@@ -88,9 +107,17 @@ export async function activate(
     vscode.workspace.onDidSaveTextDocument(async (doc) => {
       if (!tempScriptManager) return;
 
-      const filePath = doc.uri.fsPath;
-      if (!filePath || !filePath.startsWith(tempScriptManager.getTempDir()))
+      let filePath: string;
+
+      if (doc.uri.scheme === TEMP_SCHEME) {
+        // For frappe-temp:// URIs, reconstruct the actual file path
+        filePath = tempScriptManager.getTempDir() + doc.uri.path;
+      } else if (doc.uri.scheme === "file") {
+        filePath = doc.uri.fsPath;
+        if (!filePath.startsWith(tempScriptManager.getTempDir())) return;
+      } else {
         return;
+      }
 
       const virtualUriString = tempScriptManager.getVirtualUri(filePath);
       if (!virtualUriString) return;
@@ -461,7 +488,7 @@ export async function activate(
     stopPort: 59021,
   });
 
-  httpServer = new HttpServer(port, registry, siteManager, outputChannel);
+  httpServer = new HttpServer(port, outputChannel);
   httpServer.start();
 
   context.subscriptions.push({

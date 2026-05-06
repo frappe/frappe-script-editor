@@ -224,7 +224,7 @@ export class ScriptRegistry {
       ];
 
       for (const sf of settingsFields) {
-        const displayPath = `_settings/${sf.displayName}${sf.ext}`;
+        const displayPath = `Builder Settings/${sf.displayName}${sf.ext}`;
         const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
         const ref: ScriptReference = {
@@ -300,6 +300,7 @@ export class ScriptRegistry {
   ): Promise<ScriptTreeItemData> {
     const pageName = sanitizeName(doc.page_name || doc.name);
     const pageLabel = doc.page_title || doc.page_name || doc.name;
+    const pageTitleSlug = sanitizeName(pageLabel);
 
     const pageNode: ScriptTreeItemData = {
       type: "page",
@@ -325,7 +326,7 @@ export class ScriptRegistry {
           const csDoc = await client.getClientScript(csRow.builder_script);
           const ext = csDoc.script_type === "CSS" ? ".css" : ".js";
           const csName = sanitizeName(csDoc.name);
-          const displayPath = `${pageName}/client scripts/${csName}${ext}`;
+          const displayPath = `${pageTitleSlug}/client scripts/${csName}${ext}`;
           const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
           const ref: ScriptReference = {
@@ -364,7 +365,7 @@ export class ScriptRegistry {
 
     // ── Data script (single file) ───────────────────────────────────────
     {
-      const displayPath = `${pageName}/data script.py`;
+      const displayPath = `${pageTitleSlug}/data script.py`;
       const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
       const ref: ScriptReference = {
@@ -400,7 +401,7 @@ export class ScriptRegistry {
         const blockScriptNodes = this.extractBlockScripts(
           siteId,
           doc.name,
-          pageName,
+          pageTitleSlug,
           blocks,
         );
 
@@ -422,7 +423,7 @@ export class ScriptRegistry {
     // ── Head code & Body code ───────────────────────────────────────────
     for (const field of ["head_html", "body_html"] as const) {
       const displayName = field === "head_html" ? "Head code" : "Body code";
-      const displayPath = `${pageName}/${displayName}.html`;
+      const displayPath = `${pageTitleSlug}/${displayName}.html`;
       const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
       const ref: ScriptReference = {

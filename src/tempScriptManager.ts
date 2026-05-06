@@ -38,7 +38,6 @@ export class TempScriptManager {
   }
 
   getTempPath(siteId: string, displayPath: string): string {
-    const sanitized = this.sanitizeFileName(displayPath);
     const key = `${siteId}:${displayPath}`;
 
     // Use existing unique ID if already generated for this key
@@ -48,7 +47,32 @@ export class TempScriptManager {
       this.uniqueIdMap.set(key, uniqueId);
     }
 
-    return path.join(this.tempDir, siteId, `${uniqueId}_${sanitized}`);
+    const pathParts = displayPath.split("/");
+    const pageName = pathParts[0];
+
+    let blockName = "root";
+    let scriptFile = pathParts[pathParts.length - 1];
+
+    // Look for "page blocks" in the path to identify block name
+    const pageBlocksIndex = pathParts.indexOf("page blocks");
+    if (pageBlocksIndex !== -1 && pageBlocksIndex < pathParts.length - 1) {
+      // The block name is the directory right after "page blocks"
+      blockName = pathParts[pageBlocksIndex + 1];
+    } else if (pathParts.length >= 3 && pathParts[1] !== "page blocks") {
+      // For nested paths without "page blocks" folder (e.g., page/blocks/block-name/script.js)
+      blockName = pathParts[pathParts.length - 2];
+    }
+
+    const cleanScriptFile = scriptFile.replace(/ /g, "-").replace(/_/g, "-");
+
+    // Build clean path: /var/page-name/unique-id/block-name/client-script.js
+    return path.join(
+      this.tempDir,
+      pageName,
+      uniqueId,
+      blockName,
+      cleanScriptFile,
+    );
   }
 
   exportScriptSync(
