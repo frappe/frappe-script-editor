@@ -32,10 +32,26 @@ export class ScriptRegistry {
   /** Cache of file contents: URI string → content string */
   private contentCache = new Map<string, string>();
 
+  /** Promise that resolves when loading is complete */
+  private loadingPromise: Promise<void> = Promise.resolve();
+
+  /** Flag to track if initial load has started */
+  private isLoading = false;
+
   private siteManager: SiteManager;
 
   constructor(siteManager: SiteManager) {
     this.siteManager = siteManager;
+  }
+
+  /** Wait for any pending load to complete */
+  async whenLoaded(): Promise<void> {
+    await this.loadingPromise;
+  }
+
+  /** Check if registry is currently loading */
+  get isCurrentlyLoading(): boolean {
+    return this.isLoading;
   }
 
   // ── Public API ──────────────────────────────────────────────────────────
@@ -76,6 +92,7 @@ export class ScriptRegistry {
     const site = this.siteManager.getSite(siteId);
     if (!site) return;
 
+    this.isLoading = true;
     this.clearSiteRegistryData(siteId);
 
     const existingNode = this.treeData.get(siteId);
@@ -103,20 +120,27 @@ export class ScriptRegistry {
         };
         this.treeData.set(siteId, siteNode);
       }
+      this.isLoading = false;
       this._onDidChange.fire();
       return;
     }
 
-    try {
-      const client = await this.siteManager.getClient(siteId);
-      await this.loadSite(siteId, site.name, site.url, client);
-      this._onDidChange.fire();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      vscode.window.showWarningMessage(
-        `Failed to reload scripts from "${site.name}": ${msg}`,
-      );
-    }
+    this.loadingPromise = (async () => {
+      try {
+        const client = await this.siteManager.getClient(siteId);
+        await this.loadSite(siteId, site.name, site.url, client);
+        this._onDidChange.fire();
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        vscode.window.showWarningMessage(
+          `Failed to reload scripts from "${site.name}": ${msg}`,
+        );
+      } finally {
+        this.isLoading = false;
+      }
+    })();
+
+    await this.loadingPromise;
   }
 
   private clearSiteRegistryData(siteId: string): void {
@@ -133,52 +157,57 @@ export class ScriptRegistry {
    * Shows progress notification during loading.
    */
   async loadAll(): Promise<void> {
+    this.isLoading = true;
     this.registry.clear();
     this.treeData.clear();
     this.contentCache.clear();
 
     const sites = this.siteManager.getSites();
 
-    await vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: "Frappe Script Editor: Loading scripts…",
-        cancellable: false,
-      },
-      async (progress) => {
-        for (const site of sites) {
-          progress.report({ message: `Loading ${site.name}…` });
+    this.loadingPromise = Promise.resolve(
+      vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "Frappe Script Editor: Loading scripts…",
+          cancellable: false,
+        },
+        async (progress) => {
+          for (const site of sites) {
+            progress.report({ message: `Loading ${site.name}…` });
 
-          if (site.hasBuilder === false) {
-            // Add site node without builder
-            const siteNode: ScriptTreeItemData = {
-              type: "site",
-              label: `${site.name}`,
-              siteId: site.id,
-              siteUrl: site.url,
-              hasBuilder: site.hasBuilder,
-              contextValue: "site",
-              children: [],
-              tooltip:
-                "Builder app is not installed on this site. Click to reload and check again.",
-            };
-            this.treeData.set(site.id, siteNode);
-            continue;
-          }
+            if (site.hasBuilder === false) {
+              const siteNode: ScriptTreeItemData = {
+                type: "site",
+                label: `${site.name}`,
+                siteId: site.id,
+                siteUrl: site.url,
+                hasBuilder: site.hasBuilder,
+                contextValue: "site",
+                children: [],
+                tooltip:
+                  "Builder app is not installed on this site. Click to reload and check again.",
+              };
+              this.treeData.set(site.id, siteNode);
+              continue;
+            }
 
-          try {
-            const client = await this.siteManager.getClient(site.id);
-            await this.loadSite(site.id, site.name, site.url, client);
-          } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : String(err);
-            vscode.window.showWarningMessage(
-              `Failed to load scripts from "${site.name}": ${msg}`,
-            );
+            try {
+              const client = await this.siteManager.getClient(site.id);
+              await this.loadSite(site.id, site.name, site.url, client);
+            } catch (err: unknown) {
+              const msg = err instanceof Error ? err.message : String(err);
+              vscode.window.showWarningMessage(
+                `Failed to load scripts from "${site.name}": ${msg}`,
+              );
+            }
           }
-        }
-      },
+        },
+      ),
     );
 
+    await this.loadingPromise;
+
+    this.isLoading = false;
     this._onDidChange.fire();
   }
 
@@ -476,8 +505,8 @@ export class ScriptRegistry {
       if (hasClientScript || hasDataScript) {
         const blockLabel = block.blockName || block.blockId || "unnamed-block";
         const blockPath = parentPath
-          ? `${parentPath}/${sanitizeName(blockLabel)}`
-          : sanitizeName(blockLabel);
+          ? `${parentPath}/${sanitizeName(blockLabel)}-${block.blockId}`
+          : `${sanitizeName(blockLabel)}-${block.blockId}`;
 
         const blockFolder: ScriptTreeItemData = {
           type: "blockFolder",
@@ -554,8 +583,8 @@ export class ScriptRegistry {
       if (block.children && block.children.length > 0) {
         const childPath = block.blockName
           ? parentPath
-            ? `${parentPath}/${sanitizeName(block.blockName)}`
-            : sanitizeName(block.blockName)
+            ? `${parentPath}/${sanitizeName(block.blockName)}-${block.blockId}`
+            : `${sanitizeName(block.blockName)}-${block.blockId}`
           : parentPath;
 
         const childNodes = this.extractBlockScripts(
@@ -611,20 +640,20 @@ export class ScriptRegistry {
         extractHostname(site.url) === incomingHostname;
       if (!urlMatch) continue;
 
-      if (ref.location.type === "docField") {
-        if (
-          ref.location.doctype === doctype &&
-          ref.location.docname === docname &&
-          (!field || ref.location.fieldName === field)
-        ) {
-          return { uri: vscode.Uri.parse(uriStr), ref };
-        }
-      } else if (ref.location.type === "blockScript") {
+      if (blockId && ref.location.type === "blockScript") {
         if (
           ref.location.doctype === doctype &&
           ref.location.docname === docname &&
           ref.location.blockId === blockId &&
           (!blockField || ref.location.blockField === blockField)
+        ) {
+          return { uri: vscode.Uri.parse(uriStr), ref };
+        }
+      } else if (!blockId && ref.location.type === "docField") {
+        if (
+          ref.location.doctype === doctype &&
+          ref.location.docname === docname &&
+          (!field || ref.location.fieldName === field)
         ) {
           return { uri: vscode.Uri.parse(uriStr), ref };
         }

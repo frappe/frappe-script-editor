@@ -457,6 +457,8 @@ export async function activate(
                 cancellable: false,
               },
               async () => {
+                await registry.whenLoaded();
+
                 const result = registry.findByDocReference(
                   siteUrl,
                   doctype,
