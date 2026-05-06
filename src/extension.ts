@@ -12,7 +12,7 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as portfinder from "portfinder";
 import { HttpServer } from "./httpServer";
-import { ScriptFileSystem } from "./scriptFileSystem";
+import { ScriptFileSystem, findBlockById } from "./scriptFileSystem";
 import { ScriptRegistry, SCHEME } from "./scriptRegistry";
 import { SiteManager } from "./siteManager";
 import { ScriptTreeProvider } from "./treeProvider";
@@ -22,6 +22,7 @@ import {
   TEMP_SCHEME,
   getCleanTempUri,
 } from "./tempFileSystemProvider";
+import type { BlockNode } from "./types";
 
 let httpServer: HttpServer | null = null;
 let tempScriptManager: TempScriptManager | null = null;
@@ -448,7 +449,18 @@ export async function activate(
           const field = query.get("field") || undefined;
           const blockId = query.get("blockId") || undefined;
           const blockField = query.get("blockField") || undefined;
-
+          outputChannel.appendLine("URI Handler:");
+          outputChannel.appendLine(
+            JSON.stringify({
+              query,
+              siteUrl,
+              doctype,
+              docname,
+              field,
+              blockId,
+              blockField,
+            }),
+          );
           if (siteUrl && doctype && docname) {
             return vscode.window.withProgress(
               {
@@ -469,7 +481,6 @@ export async function activate(
                 );
 
                 if (result) {
-                  // Export to temp file and open with clean URI (consistent with tree click)
                   if (tempScriptManager) {
                     const cached = registry.getCachedContent(result.uri);
                     if (cached !== undefined) {
@@ -491,7 +502,6 @@ export async function activate(
                         `Exported to temp (URI handler): ${tempPath}`,
                       );
                     } else {
-                      // Fallback: open original URI if no cached content
                       const doc = await vscode.workspace.openTextDocument(
                         result.uri,
                       );
@@ -508,12 +518,118 @@ export async function activate(
                     });
                   }
                 } else {
+                  outputChannel.appendLine(
+                    `URI Handler: script not found. blockId=${blockId} blockField=${blockField} field=${field}`,
+                  );
                   const site = siteManager.findSiteByUrl(siteUrl);
                   if (!site) {
                     vscode.window.showWarningMessage(
                       `Frappe Script Editor: Site "${siteUrl}" is not configured. Add it from the sidebar.`,
                     );
                   } else {
+                    let created = false;
+                    try {
+                      const client = await siteManager.getClient(site.id);
+                      if (
+                        doctype === "Builder Page" &&
+                        docname &&
+                        blockId &&
+                        blockField
+                      ) {
+                        const { json, field } =
+                          await client.getPageBlocksRaw(docname);
+
+                        const blocks: BlockNode[] = JSON.parse(json);
+
+                        const block = findBlockById(blocks, blockId);
+
+                        if (!block) {
+                          throw new Error(
+                            `Block "${blockId}" not found in page "${docname}"`,
+                          );
+                        }
+                        (block as Record<string, unknown>)[blockField] = "";
+
+                        try {
+                          await client.updatePageBlocks(
+                            docname,
+                            field,
+                            JSON.stringify(blocks),
+                          );
+                        } catch (e) {
+                          outputChannel.appendLine(
+                            `URI Handler: updatePageBlocks ERROR: ${e}`,
+                          );
+                          throw e;
+                        }
+                        created = true;
+                      } else if (
+                        doctype === "Builder Page" &&
+                        docname &&
+                        field
+                      ) {
+                        const page = await client.getPageDoc(docname);
+                        if (!page) {
+                          throw new Error(
+                            `Builder Page "${docname}" not found`,
+                          );
+                        }
+                        await client.updateField(doctype, docname, field, "");
+                        created = true;
+                      }
+
+                      if (created) {
+                        await registry.reloadSite(site.id);
+                        const retryResult = registry.findByDocReference(
+                          siteUrl,
+                          doctype,
+                          docname,
+                          field,
+                          blockId,
+                          blockField,
+                        );
+
+                        if (retryResult) {
+                          const cached = registry.getCachedContent(
+                            retryResult.uri,
+                          );
+                          if (tempScriptManager && cached !== undefined) {
+                            const tempPath = tempScriptManager.exportScriptSync(
+                              retryResult.uri,
+                              retryResult.ref,
+                              cached,
+                            );
+                            const cleanUri = getCleanTempUri(
+                              tempPath,
+                              tempScriptManager.getTempDir(),
+                            );
+                            const doc =
+                              await vscode.workspace.openTextDocument(cleanUri);
+                            await vscode.window.showTextDocument(doc, {
+                              preview: false,
+                            });
+                          } else {
+                            const doc = await vscode.workspace.openTextDocument(
+                              retryResult.uri,
+                            );
+                            await vscode.window.showTextDocument(doc, {
+                              preview: false,
+                            });
+                          }
+                          outputChannel.appendLine(
+                            `Created and opened new script: ${doctype}/${docname}`,
+                          );
+                          return;
+                        }
+                      }
+                    } catch (err) {
+                      const msg =
+                        err instanceof Error ? err.message : String(err);
+                      outputChannel.appendLine(
+                        `Failed to create script: ${msg}`,
+                      );
+                    }
+
                     vscode.window.showWarningMessage(
                       `Frappe Script Editor: Script not found for ${doctype}/${docname}. Try refreshing the scripts list.`,
                     );

@@ -499,8 +499,8 @@ export class ScriptRegistry {
     for (const block of blocks) {
       if (!block) continue;
 
-      const hasClientScript = !!block.blockClientScript;
-      const hasDataScript = !!block.blockDataScript;
+      const hasClientScript = "blockClientScript" in block;
+      const hasDataScript = "blockDataScript" in block;
 
       if (hasClientScript || hasDataScript) {
         const blockLabel = block.blockName || block.blockId || "unnamed-block";

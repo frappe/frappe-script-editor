@@ -214,7 +214,7 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
 /**
  * Recursively search the block tree for a block with the given blockId.
  */
-function findBlockById(blocks: BlockNode[], blockId: string): BlockNode | null {
+export function findBlockById(blocks: BlockNode[], blockId: string): BlockNode | null {
   for (const block of blocks) {
     if (!block) continue;
     if (block.blockId === blockId) return block;
