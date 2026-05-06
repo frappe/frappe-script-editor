@@ -465,42 +465,66 @@ export async function activate(
     field: string | undefined,
     blockId: string | undefined,
     blockField: string | undefined,
-  ): Promise<boolean> => {
+  ): Promise<{ uri: vscode.Uri; ref: import("./types").ScriptReference } | null> => {
     const site = siteManager.findSiteByUrl(siteUrl);
     if (!site) {
       vscode.window.showWarningMessage(
         `Frappe Script Editor: Site "${siteUrl}" is not configured. Add it from the sidebar.`,
       );
-      return false;
+      return null;
     }
 
     const client = await siteManager.getClient(site.id);
-    let created = false;
 
     if (doctype === "Builder Page" && docname && blockId && blockField) {
-      const { json, field } = await client.getPageBlocksRaw(docname);
+      // Block-level script: update the block JSON, then register in-place
+      const { json, field: blocksField } = await client.getPageBlocksRaw(docname);
       const blocks: BlockNode[] = JSON.parse(json);
       const block = findBlockById(blocks, blockId);
       if (!block) {
         throw new Error(`Block "${blockId}" not found in page "${docname}"`);
       }
       (block as Record<string, unknown>)[blockField] = "";
-      await client.updatePageBlocks(docname, field, JSON.stringify(blocks));
-      created = true;
+      await client.updatePageBlocks(docname, blocksField, JSON.stringify(blocks));
+
+      // Derive labels for tree insertion
+      const pageDoc = await client.getPageDoc(docname);
+      const pageLabel = pageDoc.page_title || pageDoc.page_name || pageDoc.name;
+      const { sanitizeName } = await import("./utils");
+      const pageTitleSlug = sanitizeName(pageLabel);
+
+      return registry.registerBlockScript(
+        site.id,
+        docname,
+        blockId,
+        blockField as "blockClientScript" | "blockDataScript",
+        pageTitleSlug,
+        "",
+        blocks,
+      );
     } else if (doctype === "Builder Page" && docname && field) {
-      const page = await client.getPageDoc(docname);
-      if (!page) {
+      // Page-level doc field script (data script, head/body code)
+      const pageDoc = await client.getPageDoc(docname);
+      if (!pageDoc) {
         throw new Error(`Builder Page "${docname}" not found`);
       }
       await client.updateField(doctype, docname, field, "");
-      created = true;
+
+      const pageLabel = pageDoc.page_title || pageDoc.page_name || pageDoc.name;
+      const { sanitizeName } = await import("./utils");
+      const pageTitleSlug = sanitizeName(pageLabel);
+
+      return registry.registerDocFieldScript(
+        site.id,
+        doctype,
+        docname,
+        field,
+        pageTitleSlug,
+        "",
+      );
     }
 
-    if (created) {
-      await registry.reloadSite(site.id);
-      return true;
-    }
-    return false;
+    return null;
   };
 
   const findAndOpenScript = async (
@@ -539,21 +563,11 @@ export async function activate(
     );
 
     if (created) {
-      const retryResult = registry.findByDocReference(
-        siteUrl,
-        doctype,
-        docname,
-        field,
-        blockId,
-        blockField,
+      await openScriptDoc(created);
+      outputChannel.appendLine(
+        `Created and opened new script: ${doctype}/${docname}`,
       );
-      if (retryResult) {
-        await openScriptDoc(retryResult);
-        outputChannel.appendLine(
-          `Created and opened new script: ${doctype}/${docname}`,
-        );
-        return true;
-      }
+      return true;
     }
 
     return false;

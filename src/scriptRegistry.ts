@@ -13,6 +13,7 @@ import type {
   FrappePageDoc,
   ScriptReference,
   ScriptTreeItemData,
+  ScriptType,
 } from "./types";
 import { sanitizeName, normalizeUrl, extractHostname } from "./utils";
 
@@ -393,7 +394,7 @@ export class ScriptRegistry {
     }
 
     // ── Data script (single file) ───────────────────────────────────────
-    {
+    if (doc.page_data_script) {
       const displayPath = `${pageTitleSlug}/data script.py`;
       const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
@@ -411,7 +412,7 @@ export class ScriptRegistry {
       };
 
       this.registry.set(uri.toString(), ref);
-      this.contentCache.set(uri.toString(), doc.page_data_script || "");
+      this.contentCache.set(uri.toString(), doc.page_data_script);
 
       pageNode.children!.push({
         type: "scriptFile",
@@ -451,6 +452,9 @@ export class ScriptRegistry {
 
     // ── Head code & Body code ───────────────────────────────────────────
     for (const field of ["head_html", "body_html"] as const) {
+      const value = doc[field] as string | null;
+      if (!value) continue;
+
       const displayName = field === "head_html" ? "Head code" : "Body code";
       const displayPath = `${pageTitleSlug}/${displayName}.html`;
       const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
@@ -469,7 +473,7 @@ export class ScriptRegistry {
       };
 
       this.registry.set(uri.toString(), ref);
-      this.contentCache.set(uri.toString(), (doc[field] as string) || "");
+      this.contentCache.set(uri.toString(), value);
 
       pageNode.children!.push({
         type: "scriptFile",
@@ -499,8 +503,8 @@ export class ScriptRegistry {
     for (const block of blocks) {
       if (!block) continue;
 
-      const hasClientScript = "blockClientScript" in block;
-      const hasDataScript = "blockDataScript" in block;
+      const hasClientScript = !!block.blockClientScript;
+      const hasDataScript = !!block.blockDataScript;
 
       if (hasClientScript || hasDataScript) {
         const blockLabel = block.blockName || block.blockId || "unnamed-block";
@@ -599,6 +603,243 @@ export class ScriptRegistry {
     }
 
     return nodes;
+  }
+  /**
+   * Register a single block script entry on-demand (called when opening a
+   * script that didn't previously exist). Adds it to both the registry
+   * and the tree so it appears immediately in the sidebar.
+   */
+  registerBlockScript(
+    siteId: string,
+    docname: string,
+    blockId: string,
+    blockField: "blockClientScript" | "blockDataScript",
+    pageTitleSlug: string,
+    content: string,
+    blocks: BlockNode[],
+  ): { uri: vscode.Uri; ref: ScriptReference } {
+    const block = this.findBlockInTree(blocks, blockId);
+    if (!block) {
+      throw new Error(`Block "${blockId}" not found in page "${docname}"`);
+    }
+
+    const blockLabel = block.blockName || block.blockId || "unnamed-block";
+    const parentPath = this.findBlockParentPath(blocks, blockId);
+    const blockPath = parentPath
+      ? `${parentPath}/${sanitizeName(blockLabel)}-${blockId}`
+      : `${sanitizeName(blockLabel)}-${blockId}`;
+
+    const isClient = blockField === "blockClientScript";
+    const ext = isClient ? ".js" : ".py";
+    const fileName = isClient ? "client script.js" : "data script.py";
+    const displayPath = `${pageTitleSlug}/page blocks/${blockPath}/${fileName}`;
+    const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
+
+    const ref: ScriptReference = {
+      siteId,
+      location: {
+        type: "blockScript",
+        doctype: "Builder Page",
+        docname,
+        blockId,
+        blockField,
+      },
+      scriptType: isClient ? "blockClientScript" : "blockDataScript",
+      fileExtension: ext,
+      displayPath,
+    };
+
+    this.registry.set(uri.toString(), ref);
+    this.contentCache.set(uri.toString(), content);
+
+    // ── Insert into tree ──────────────────────────────────────────────
+    const siteNode = this.treeData.get(siteId);
+    if (siteNode?.children) {
+      // Find the page node that owns this docname
+      for (const pageNode of siteNode.children) {
+        if (pageNode.type !== "page") continue;
+        if (pageNode.tooltip !== `Route: ${docname}`) continue;
+
+        // Find or create "page blocks" folder
+        let blocksFolder = pageNode.children?.find(
+          (c) => c.type === "pageBlocksFolder",
+        );
+        if (!blocksFolder) {
+          blocksFolder = {
+            type: "pageBlocksFolder",
+            label: "page blocks",
+            siteId,
+            children: [],
+            iconId: "folder",
+          };
+          pageNode.children!.push(blocksFolder);
+        }
+
+        // Find or create the block folder
+        let blockFolder = blocksFolder.children?.find(
+          (c) => c.type === "blockFolder" && c.label === blockLabel,
+        );
+        if (!blockFolder) {
+          blockFolder = {
+            type: "blockFolder",
+            label: blockLabel,
+            siteId,
+            children: [],
+            iconId: "symbol-structure",
+          };
+          blocksFolder.children!.push(blockFolder);
+        }
+
+        // Add the script file node
+        blockFolder.children!.push({
+          type: "scriptFile",
+          label: fileName,
+          siteId,
+          uri,
+          iconId: isClient ? "symbol-event" : "symbol-method",
+        });
+
+        break;
+      }
+    }
+
+    this._onDidChange.fire();
+    return { uri, ref };
+  }
+
+  /**
+   * Recursively search the block tree for a block with the given blockId.
+   */
+  private findBlockInTree(
+    blocks: BlockNode[],
+    blockId: string,
+  ): BlockNode | null {
+    for (const block of blocks) {
+      if (!block) continue;
+      if (block.blockId === blockId) return block;
+      if (block.children && block.children.length > 0) {
+        const found = this.findBlockInTree(block.children, blockId);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Compute the parent path for a given blockId, matching the logic in
+   * extractBlockScripts. Walks the block tree to build the ancestor path.
+   */
+  private findBlockParentPath(
+    blocks: BlockNode[],
+    targetBlockId: string,
+    currentPath: string = "",
+  ): string | null {
+    for (const block of blocks) {
+      if (!block) continue;
+      if (block.blockId === targetBlockId) return currentPath;
+
+      if (block.children && block.children.length > 0) {
+        const childPath = block.blockName
+          ? currentPath
+            ? `${currentPath}/${sanitizeName(block.blockName)}-${block.blockId}`
+            : `${sanitizeName(block.blockName)}-${block.blockId}`
+          : currentPath;
+
+        const result = this.findBlockParentPath(
+          block.children,
+          targetBlockId,
+          childPath,
+        );
+        if (result !== null) return result;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Register a page-level doc field script on-demand (data script, head/body code).
+   * Adds it to both the registry and the tree so it appears immediately.
+   */
+  registerDocFieldScript(
+    siteId: string,
+    doctype: string,
+    docname: string,
+    fieldName: string,
+    pageTitleSlug: string,
+    content: string,
+  ): { uri: vscode.Uri; ref: ScriptReference } {
+    const fieldConfig: Record<
+      string,
+      { label: string; ext: string; scriptType: ScriptType; iconId: string }
+    > = {
+      page_data_script: {
+        label: "data script",
+        ext: ".py",
+        scriptType: "pageDataScript",
+        iconId: "symbol-method",
+      },
+      head_html: {
+        label: "Head code",
+        ext: ".html",
+        scriptType: "clientScript",
+        iconId: "code",
+      },
+      body_html: {
+        label: "Body code",
+        ext: ".html",
+        scriptType: "clientScript",
+        iconId: "code",
+      },
+    };
+
+    const config = fieldConfig[fieldName];
+    if (!config) {
+      throw new Error(
+        `Unknown field "${fieldName}" for on-demand registration`,
+      );
+    }
+
+    const displayPath = `${pageTitleSlug}/${config.label}${config.ext}`;
+    const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
+
+    const ref: ScriptReference = {
+      siteId,
+      location: {
+        type: "docField",
+        doctype,
+        docname,
+        fieldName,
+      },
+      scriptType: config.scriptType,
+      fileExtension: config.ext,
+      displayPath,
+    };
+
+    this.registry.set(uri.toString(), ref);
+    this.contentCache.set(uri.toString(), content);
+
+    // ── Insert into tree ──────────────────────────────────────────────
+    const siteNode = this.treeData.get(siteId);
+    if (siteNode?.children) {
+      for (const pageNode of siteNode.children) {
+        if (pageNode.type !== "page") continue;
+        if (pageNode.tooltip !== `Route: ${docname}`) continue;
+
+        pageNode.children!.push({
+          type: "scriptFile",
+          label: `${config.label}${config.ext}`,
+          siteId,
+          uri,
+          iconId: config.iconId,
+        });
+
+        break;
+      }
+    }
+
+    this._onDidChange.fire();
+    return { uri, ref };
   }
 
   private getIconForExtension(ext: string): string {
