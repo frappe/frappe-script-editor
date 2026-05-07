@@ -183,6 +183,33 @@ export async function activate(
   // Set initial title
   updateViewTitle();
 
+  // ── Sync Tree View with Active Editor ─────────────────────────────────────
+
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
+      if (!editor) return;
+      const doc = editor.document;
+
+      let virtualUri: vscode.Uri | undefined;
+      if (doc.uri.scheme === SCHEME) {
+        virtualUri = doc.uri;
+      } else if (doc.uri.scheme === TEMP_SCHEME && tempScriptManager) {
+        const filePath = tempScriptManager.getTempDir() + doc.uri.path;
+        const uriString = tempScriptManager.getVirtualUri(filePath);
+        if (uriString) {
+          virtualUri = vscode.Uri.parse(uriString);
+        }
+      }
+
+      if (virtualUri) {
+        const node = treeProvider.findNodeByUri(virtualUri);
+        if (node) {
+          treeView.reveal(node, { select: true, focus: false, expand: true });
+        }
+      }
+    }),
+  );
+
   // ── Setup Context Keys ──────────────────────────────────────────────────
 
   const updateHasSitesContext = () => {

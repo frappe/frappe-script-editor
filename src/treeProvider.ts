@@ -147,6 +147,53 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
     return treeItem;
   }
 
+  getParent(
+    element: ScriptTreeItemData,
+  ): vscode.ProviderResult<ScriptTreeItemData> {
+    return this.findParent(this.registry.getTreeData(), element);
+  }
+
+  private findParent(
+    nodes: ScriptTreeItemData[],
+    target: ScriptTreeItemData,
+  ): ScriptTreeItemData | undefined {
+    for (const node of nodes) {
+      if (node.children) {
+        if (node.children.includes(target)) {
+          return node;
+        }
+        const found = this.findParent(node.children, target);
+        if (found) {
+          return found;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  findNodeByUri(uri: vscode.Uri): ScriptTreeItemData | undefined {
+    const uriString = uri.toString();
+    return this.findNodeByUriRecursive(this.registry.getTreeData(), uriString);
+  }
+
+  private findNodeByUriRecursive(
+    nodes: ScriptTreeItemData[],
+    uriString: string,
+  ): ScriptTreeItemData | undefined {
+    for (const node of nodes) {
+      if (node.uri && node.uri.toString() === uriString) {
+        return node;
+      }
+      if (node.children) {
+        const found = this.findNodeByUriRecursive(node.children, uriString);
+        if (found) {
+          return found;
+        }
+      }
+    }
+    return undefined;
+  }
+
   getChildren(
     element?: ScriptTreeItemData,
   ): vscode.ProviderResult<ScriptTreeItemData[]> {
