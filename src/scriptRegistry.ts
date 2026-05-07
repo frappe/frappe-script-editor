@@ -546,9 +546,7 @@ export class ScriptRegistry {
         this.registry.set(uri.toString(), ref);
 
         // Cache content
-        const value = (settings as unknown as Record<string, unknown>)[
-          builderField.field
-        ] as string | null;
+        const value = settings[builderField.field] as string | null;
         this.contentCache.set(uri.toString(), value || "");
 
         settingsNode.children!.push({

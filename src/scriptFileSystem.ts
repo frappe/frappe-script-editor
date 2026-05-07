@@ -86,19 +86,13 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
 
         if (doctype === BUILDER_DOCTYPES.SETTINGS) {
           const settings = await client.getBuilderSettings();
-          content =
-            ((settings as unknown as Record<string, unknown>)[
-              fieldName
-            ] as string) || "";
+          content = (settings[fieldName] as string) || "";
         } else if (doctype === BUILDER_DOCTYPES.CLIENT_SCRIPT) {
           const csDoc = await client.getClientScript(docname);
           content = csDoc.script || "";
         } else {
           const pageDoc = await client.getPageDoc(docname);
-          content =
-            ((pageDoc as unknown as Record<string, unknown>)[
-              fieldName
-            ] as string) || "";
+          content = (pageDoc[fieldName] as string) || "";
         }
       } else if (ref.location.type === "blockScript") {
         const { docname, blockId, blockField } = ref.location;

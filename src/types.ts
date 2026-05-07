@@ -92,6 +92,7 @@ export interface FrappePageDoc {
   blocks: string | null;
   draft_blocks: string | null;
   client_scripts: Array<{ builder_script: string; name: string }>;
+  [key: string]: unknown;
 }
 
 export interface FrappeClientScriptDoc {
@@ -105,6 +106,7 @@ export interface FrappeBuilderSettingsDoc {
   body_html: string | null;
   script: string | null;
   style: string | null;
+  [key: string]: unknown;
 }
 
 export interface BlockNode {
