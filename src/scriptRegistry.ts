@@ -393,6 +393,10 @@ export class ScriptRegistry {
     await this.loadingPromise;
   }
 
+  removeSiteTreeData(siteId: string): void {
+    this.treeData.delete(siteId);
+  }
+
   async loadSites(): Promise<void> {
     const sites = this.siteManager.getSites();
 

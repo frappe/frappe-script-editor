@@ -16,8 +16,14 @@ export function registerRemoveSite(context: CommandContext): vscode.Disposable {
             "Remove",
           );
           if (confirm === "Remove") {
-            await context.siteManager.removeSite(item.siteId);
-            await context.registry.loadSites();
+            const removedSiteId = item.siteId;
+            const wasCurrentSite = context.treeProvider.currentSiteId === removedSiteId;
+            await context.siteManager.removeSite(removedSiteId);
+            context.registry.removeSiteTreeData(removedSiteId);
+            if (wasCurrentSite) {
+              context.treeProvider.currentSiteId = null;
+            }
+            context.treeProvider.refresh();
           }
         }
       }
