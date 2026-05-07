@@ -66,6 +66,8 @@ export interface ScriptTreeItemData {
   contextValue?: string;
   tooltip?: string;
   iconId?: string;
+
+  collapsibleState?: vscode.TreeItemCollapsibleState;
 }
 
 export interface FrappePageSummary {

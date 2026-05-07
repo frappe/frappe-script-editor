@@ -43,6 +43,8 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
       collapsibleState = this.currentSiteId
         ? vscode.TreeItemCollapsibleState.Expanded
         : vscode.TreeItemCollapsibleState.None;
+    } else if (element.collapsibleState) {
+      collapsibleState = element.collapsibleState;
     } else {
       collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
     }
@@ -75,7 +77,7 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
           treeItem.iconPath = new vscode.ThemeIcon("search");
           treeItem.command = {
             command: "frappeScriptEditor.searchBlocks",
-            title: "Search Blocks"
+            title: "Search Blocks",
           };
           break;
       }
@@ -153,18 +155,22 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
         const siteNode = this.registry
           .getTreeData()
           .find((s) => s.siteId === this.currentSiteId);
-        
+
         let children = siteNode?.children || [];
-        
+
         if (this.searchQuery) {
           children = this.filterTreeData(children, this.searchQuery);
         }
 
         const searchNode: ScriptTreeItemData = {
           type: "searchNode",
-          label: this.searchQuery ? `Search: "${this.searchQuery}"` : "Search blocks...",
+          label: this.searchQuery
+            ? `Search: "${this.searchQuery}"`
+            : "Search blocks...",
           siteId: this.currentSiteId,
-          contextValue: this.searchQuery ? "searchNodeActive" : "searchNodeEmpty",
+          contextValue: this.searchQuery
+            ? "searchNodeActive"
+            : "searchNodeEmpty",
         };
 
         return [searchNode, ...children];
@@ -178,7 +184,7 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
   private filterTreeData(
     nodes: ScriptTreeItemData[],
     query: string,
-    keepAllChildren = false
+    keepAllChildren = false,
   ): ScriptTreeItemData[] {
     const lowerQuery = query.toLowerCase();
     const result: ScriptTreeItemData[] = [];
@@ -193,21 +199,36 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
         continue;
       }
 
-      const matchesQuery = node.label?.toLowerCase().includes(lowerQuery) || false;
-      
-      const isMatchingBlockOrPage = 
-        (node.type === "blockFolder" || node.type === "page" || node.type === "pageBlocksFolder") && matchesQuery;
+      const matchesQuery =
+        node.label?.toLowerCase().includes(lowerQuery) || false;
+
+      const isMatchingBlockOrPage =
+        (node.type === "blockFolder" ||
+          node.type === "page" ||
+          node.type === "pageBlocksFolder") &&
+        matchesQuery;
 
       const shouldKeepChildren = keepAllChildren || isMatchingBlockOrPage;
 
       let filteredChildren: ScriptTreeItemData[] | undefined = undefined;
       if (node.children) {
-        filteredChildren = this.filterTreeData(node.children, query, shouldKeepChildren);
+        filteredChildren = this.filterTreeData(
+          node.children,
+          query,
+          shouldKeepChildren,
+        );
       }
 
-      const hasMatchingChildren = filteredChildren && filteredChildren.length > 0;
+      const hasMatchingChildren =
+        filteredChildren && filteredChildren.length > 0;
 
       if (matchesQuery || hasMatchingChildren) {
+        if (
+          node.type == "pageBlocksFolder" ||
+          node.type == "clientScriptsFolder"
+        ) {
+          node.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
+        }
         const cloned = { ...node };
         if (filteredChildren) {
           cloned.children = filteredChildren;
