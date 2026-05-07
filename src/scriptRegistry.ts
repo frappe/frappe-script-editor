@@ -29,11 +29,23 @@ import {
 
 export const SCHEME = "frappe-builder";
 
+function makeDocRefKey(
+  siteId: string,
+  location: ScriptReference["location"],
+): string {
+  if (location.type === "blockScript") {
+    return `${siteId}:${location.doctype}:${location.docname}:block:${location.blockId}:${location.blockField}`;
+  }
+  return `${siteId}:${location.doctype}:${location.docname}:field:${location.fieldName}`;
+}
+
 export class ScriptRegistry {
   private _onDidChange = new vscode.EventEmitter<void>();
   readonly onDidChange = this._onDidChange.event;
 
   private registry = new Map<string, ScriptReference>();
+
+  private docRefIndex = new Map<string, string>();
 
   private treeData = new Map<string, ScriptTreeItemData>();
 
@@ -133,6 +145,7 @@ export class ScriptRegistry {
     };
 
     this.registry.set(uri.toString(), ref);
+    this.docRefIndex.set(makeDocRefKey(siteId, ref.location), uri.toString());
     this.contentCache.set(uri.toString(), content);
 
     // ── Insert into tree ──────────────────────────────────────────────
@@ -220,6 +233,7 @@ export class ScriptRegistry {
     };
 
     this.registry.set(uri.toString(), ref);
+    this.docRefIndex.set(makeDocRefKey(siteId, ref.location), uri.toString());
     this.contentCache.set(uri.toString(), content);
 
     // ── Insert into tree ──────────────────────────────────────────────
@@ -248,6 +262,7 @@ export class ScriptRegistry {
   /**
    * Find a script reference by matching site URL, doctype, docname, and field/blockId.
    * Used by the HTTP server to locate scripts requested from the browser.
+   *
    */
   findByDocReference(
     siteUrl: string,
@@ -259,35 +274,26 @@ export class ScriptRegistry {
   ): { uri: vscode.Uri; ref: ScriptReference } | undefined {
     const incomingHostname = extractHostname(siteUrl);
 
-    for (const [uriStr, ref] of this.registry.entries()) {
-      const site = this.siteManager.getSites().find((s) => s.id === ref.siteId);
-      if (!site) continue;
+    const site = this.siteManager
+      .getSites()
+      .find(
+        (s) =>
+          normalizeUrl(s.url) === normalizeUrl(siteUrl) ||
+          extractHostname(s.url) === incomingHostname,
+      );
+    if (!site) return undefined;
 
-      const urlMatch =
-        normalizeUrl(site.url) === normalizeUrl(siteUrl) ||
-        extractHostname(site.url) === incomingHostname;
-      if (!urlMatch) continue;
+    const indexKey = blockId
+      ? `${site.id}:${doctype}:${docname}:block:${blockId}:${blockField ?? ""}`
+      : `${site.id}:${doctype}:${docname}:field:${field ?? ""}`;
 
-      if (blockId && ref.location.type === "blockScript") {
-        if (
-          ref.location.doctype === doctype &&
-          ref.location.docname === docname &&
-          ref.location.blockId === blockId &&
-          (!blockField || ref.location.blockField === blockField)
-        ) {
-          return { uri: vscode.Uri.parse(uriStr), ref };
-        }
-      } else if (!blockId && ref.location.type === "docField") {
-        if (
-          ref.location.doctype === doctype &&
-          ref.location.docname === docname &&
-          (!field || ref.location.fieldName === field)
-        ) {
-          return { uri: vscode.Uri.parse(uriStr), ref };
-        }
-      }
-    }
-    return undefined;
+    const uriStr = this.docRefIndex.get(indexKey);
+    if (!uriStr) return undefined;
+
+    const ref = this.registry.get(uriStr);
+    if (!ref) return undefined;
+
+    return { uri: vscode.Uri.parse(uriStr), ref };
   }
 
   async whenLoaded(): Promise<void> {
@@ -427,6 +433,7 @@ export class ScriptRegistry {
 
     if (!siteId) {
       this.registry.clear();
+      this.docRefIndex.clear();
       this.treeData.clear();
       this.contentCache.clear();
     } else {
@@ -544,6 +551,10 @@ export class ScriptRegistry {
         };
 
         this.registry.set(uri.toString(), ref);
+        this.docRefIndex.set(
+          makeDocRefKey(siteId, ref.location),
+          uri.toString(),
+        );
 
         // Cache content
         const value = settings[builderField.field] as string | null;
@@ -644,6 +655,10 @@ export class ScriptRegistry {
           };
 
           this.registry.set(uri.toString(), ref);
+          this.docRefIndex.set(
+            makeDocRefKey(siteId, ref.location),
+            uri.toString(),
+          );
           this.contentCache.set(uri.toString(), csDoc.script || "");
 
           clientScriptsFolder.children!.push({
@@ -683,6 +698,7 @@ export class ScriptRegistry {
     };
 
     this.registry.set(uri.toString(), ref);
+    this.docRefIndex.set(makeDocRefKey(siteId, ref.location), uri.toString());
     this.contentCache.set(uri.toString(), doc.page_data_script || "");
 
     pageNode.children!.push({
@@ -748,6 +764,7 @@ export class ScriptRegistry {
       };
 
       this.registry.set(uri.toString(), ref);
+      this.docRefIndex.set(makeDocRefKey(siteId, ref.location), uri.toString());
       this.contentCache.set(uri.toString(), value || "");
 
       pageNode.children!.push({
@@ -810,6 +827,10 @@ export class ScriptRegistry {
           };
 
           this.registry.set(uri.toString(), ref);
+          this.docRefIndex.set(
+            makeDocRefKey(siteId, ref.location),
+            uri.toString(),
+          );
           this.contentCache.set(uri.toString(), block.blockClientScript || "");
 
           blockFolder.children!.push({
@@ -840,6 +861,10 @@ export class ScriptRegistry {
           };
 
           this.registry.set(uri.toString(), ref);
+          this.docRefIndex.set(
+            makeDocRefKey(siteId, ref.location),
+            uri.toString(),
+          );
           this.contentCache.set(uri.toString(), block.blockDataScript || "");
 
           blockFolder.children!.push({
@@ -936,6 +961,8 @@ export class ScriptRegistry {
   private clearSiteRegistryData(siteId: string): void {
     for (const [uriStr, ref] of this.registry.entries()) {
       if (ref.siteId === siteId) {
+        const key = makeDocRefKey(ref.siteId, ref.location);
+        this.docRefIndex.delete(key);
         this.registry.delete(uriStr);
         this.contentCache.delete(uriStr);
       }
