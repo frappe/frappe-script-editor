@@ -9,13 +9,23 @@ import * as vscode from "vscode";
 import type { FrappeClient } from "./frappeClient";
 import type { SiteManager } from "./siteManager";
 import type {
+  BlockFieldScript,
   BlockNode,
   FrappePageDoc,
   ScriptReference,
   ScriptTreeItemData,
-  ScriptType,
 } from "./types";
 import { sanitizeName, normalizeUrl, extractHostname } from "./utils";
+import {
+  BUILDER_DOCTYPES,
+  BUILDER_FIELDS,
+  BUILDER_SETTINGS_FIELDS,
+  PAGE_SCRIPT_FIELDS,
+  FOLDER_LABELS,
+  TOOLTIPS,
+  ERROR_MESSAGES,
+  PROGRESS_TITLES,
+} from "./builderConfig";
 
 export const SCHEME = "frappe-builder";
 
@@ -37,10 +47,6 @@ export class ScriptRegistry {
 
   constructor(siteManager: SiteManager) {
     this.siteManager = siteManager;
-  }
-
-  async whenLoaded(): Promise<void> {
-    await this.loadingPromise;
   }
 
   // ── Public API ──────────────────────────────────────────────────────────
@@ -79,6 +85,215 @@ export class ScriptRegistry {
     this.contentCache.set(uriString, content);
   }
 
+  /**
+   * Register a single block script entry on-demand (called when opening a
+   * script that didn't previously exist). Adds it to both the registry
+   * and the tree so it appears immediately in the sidebar.
+   */
+  registerBlockScript(
+    siteId: string,
+    docname: string,
+    blockId: string,
+    blockField: BlockFieldScript,
+    pageTitleSlug: string,
+    content: string,
+    blocks: BlockNode[],
+  ): { uri: vscode.Uri; ref: ScriptReference } {
+    const block = this.findBlockInTree(blocks, blockId);
+    if (!block) {
+      throw new Error(ERROR_MESSAGES.BLOCK_NOT_FOUND(blockId, docname));
+    }
+
+    const blockLabel = block.blockName || block.blockId || "unnamed-block";
+    const parentPath = this.findBlockParentPath(blocks, blockId);
+    const blockPath = parentPath
+      ? `${parentPath}/${sanitizeName(blockLabel)}-${blockId}`
+      : `${sanitizeName(blockLabel)}-${blockId}`;
+
+    const isClient = blockField === BUILDER_FIELDS.BLOCK.CLIENT_SCRIPT;
+    const ext = isClient ? ".js" : ".py";
+    const fileName = isClient
+      ? FOLDER_LABELS.CLIENT_SCRIPT
+      : FOLDER_LABELS.DATA_SCRIPT_PY;
+    const displayPath = `${pageTitleSlug}/${FOLDER_LABELS.PAGE_BLOCKS}/${blockPath}/${fileName}`;
+    const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
+
+    const ref: ScriptReference = {
+      siteId,
+      location: {
+        type: "blockScript",
+        doctype: BUILDER_DOCTYPES.PAGE,
+        docname,
+        blockId,
+        blockField,
+      },
+      scriptType: isClient ? "blockClientScript" : "blockDataScript",
+      fileExtension: ext,
+      displayPath,
+    };
+
+    this.registry.set(uri.toString(), ref);
+    this.contentCache.set(uri.toString(), content);
+
+    // ── Insert into tree ──────────────────────────────────────────────
+    const siteNode = this.treeData.get(siteId);
+    if (siteNode?.children) {
+      for (const pageNode of siteNode.children) {
+        if (pageNode.type !== "page") continue;
+        if (pageNode.tooltip !== `${TOOLTIPS.ROUTE_PREFIX}${docname}`) continue;
+
+        let blocksFolder = pageNode.children?.find(
+          (c) => c.type === "pageBlocksFolder",
+        );
+        if (!blocksFolder) {
+          blocksFolder = {
+            type: "pageBlocksFolder",
+            label: FOLDER_LABELS.PAGE_BLOCKS,
+            siteId,
+            children: [],
+            iconId: "folder",
+          };
+          pageNode.children!.push(blocksFolder);
+        }
+
+        let blockFolder = blocksFolder.children?.find(
+          (c) => c.type === "blockFolder" && c.label === blockLabel,
+        );
+        if (!blockFolder) {
+          blockFolder = {
+            type: "blockFolder",
+            label: blockLabel,
+            siteId,
+            children: [],
+            iconId: "symbol-structure",
+          };
+          blocksFolder.children!.push(blockFolder);
+        }
+
+        blockFolder.children!.push({
+          type: "scriptFile",
+          label: fileName,
+          siteId,
+          uri,
+          iconId: isClient ? "symbol-event" : "symbol-method",
+        });
+
+        break;
+      }
+    }
+
+    this._onDidChange.fire();
+    return { uri, ref };
+  }
+
+  /**
+   * Register a page-level doc field script on-demand (data script, head/body code).
+   * Adds it to both the registry and the tree so it appears immediately.
+   */
+  registerDocFieldScript(
+    siteId: string,
+    doctype: string,
+    docname: string,
+    fieldName: string,
+    pageTitleSlug: string,
+    content: string,
+  ): { uri: vscode.Uri; ref: ScriptReference } {
+    const config = PAGE_SCRIPT_FIELDS[fieldName];
+    if (!config) {
+      throw new Error(ERROR_MESSAGES.UNKNOWN_FIELD(fieldName));
+    }
+
+    const displayPath = `${pageTitleSlug}/${config.label}${config.ext}`;
+    const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
+
+    const ref: ScriptReference = {
+      siteId,
+      location: {
+        type: "docField",
+        doctype,
+        docname,
+        fieldName,
+      },
+      scriptType: config.scriptType,
+      fileExtension: config.ext,
+      displayPath,
+    };
+
+    this.registry.set(uri.toString(), ref);
+    this.contentCache.set(uri.toString(), content);
+
+    // ── Insert into tree ──────────────────────────────────────────────
+    const siteNode = this.treeData.get(siteId);
+    if (siteNode?.children) {
+      for (const pageNode of siteNode.children) {
+        if (pageNode.type !== "page") continue;
+        if (pageNode.tooltip !== `${TOOLTIPS.ROUTE_PREFIX}${docname}`) continue;
+
+        pageNode.children!.push({
+          type: "scriptFile",
+          label: `${config.label}${config.ext}`,
+          siteId,
+          uri,
+          iconId: config.iconId,
+        });
+
+        break;
+      }
+    }
+
+    this._onDidChange.fire();
+    return { uri, ref };
+  }
+
+  /**
+   * Find a script reference by matching site URL, doctype, docname, and field/blockId.
+   * Used by the HTTP server to locate scripts requested from the browser.
+   */
+  findByDocReference(
+    siteUrl: string,
+    doctype: string,
+    docname: string,
+    field?: string,
+    blockId?: string,
+    blockField?: BlockFieldScript,
+  ): { uri: vscode.Uri; ref: ScriptReference } | undefined {
+    const incomingHostname = extractHostname(siteUrl);
+
+    for (const [uriStr, ref] of this.registry.entries()) {
+      const site = this.siteManager.getSites().find((s) => s.id === ref.siteId);
+      if (!site) continue;
+
+      const urlMatch =
+        normalizeUrl(site.url) === normalizeUrl(siteUrl) ||
+        extractHostname(site.url) === incomingHostname;
+      if (!urlMatch) continue;
+
+      if (blockId && ref.location.type === "blockScript") {
+        if (
+          ref.location.doctype === doctype &&
+          ref.location.docname === docname &&
+          ref.location.blockId === blockId &&
+          (!blockField || ref.location.blockField === blockField)
+        ) {
+          return { uri: vscode.Uri.parse(uriStr), ref };
+        }
+      } else if (!blockId && ref.location.type === "docField") {
+        if (
+          ref.location.doctype === doctype &&
+          ref.location.docname === docname &&
+          (!field || ref.location.fieldName === field)
+        ) {
+          return { uri: vscode.Uri.parse(uriStr), ref };
+        }
+      }
+    }
+    return undefined;
+  }
+
+  async whenLoaded(): Promise<void> {
+    await this.loadingPromise;
+  }
+
   async reloadSite(siteId: string): Promise<void> {
     const site = this.siteManager.getSite(siteId);
     if (!site) return;
@@ -93,10 +308,9 @@ export class ScriptRegistry {
       existingNode.isOffline = site.isOffline;
 
       if (site.isOffline === true) {
-        existingNode.tooltip = "Site is offline. Click to retry.";
+        existingNode.tooltip = TOOLTIPS.SITE_OFFLINE;
       } else if (site.hasBuilder === false) {
-        existingNode.tooltip =
-          "Builder app is not installed on this site. Click to reload and check again.";
+        existingNode.tooltip = TOOLTIPS.NO_BUILDER;
       } else {
         existingNode.tooltip = undefined;
       }
@@ -113,7 +327,7 @@ export class ScriptRegistry {
           isOffline: site.isOffline,
           contextValue: "site",
           children: [],
-          tooltip: "Site is offline. Click to retry.",
+          tooltip: TOOLTIPS.SITE_OFFLINE,
         };
         this.treeData.set(siteId, siteNode);
       }
@@ -132,8 +346,7 @@ export class ScriptRegistry {
           hasBuilder: site.hasBuilder,
           contextValue: "site",
           children: [],
-          tooltip:
-            "Builder app is not installed on this site. Click to reload and check again.",
+          tooltip: TOOLTIPS.NO_BUILDER,
         };
         this.treeData.set(siteId, siteNode);
       }
@@ -150,7 +363,7 @@ export class ScriptRegistry {
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         vscode.window.showWarningMessage(
-          `Failed to reload scripts from "${site.name}": ${msg}`,
+          ERROR_MESSAGES.LOADING_SCRIPTS(site.name, msg),
         );
       } finally {
         this.isLoading = false;
@@ -160,15 +373,6 @@ export class ScriptRegistry {
     await this.loadingPromise;
   }
 
-  private clearSiteRegistryData(siteId: string): void {
-    for (const [uriStr, ref] of this.registry.entries()) {
-      if (ref.siteId === siteId) {
-        this.registry.delete(uriStr);
-        this.contentCache.delete(uriStr);
-      }
-    }
-  }
-
   async loadSites(): Promise<void> {
     const sites = this.siteManager.getSites();
 
@@ -176,12 +380,14 @@ export class ScriptRegistry {
       vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: "Frappe Script Editor: Loading sites…",
+          title: PROGRESS_TITLES.LOADING_SITES,
           cancellable: false,
         },
         async (progress) => {
           for (const site of sites) {
-            progress.report({ message: `Loading ${site.name}…` });
+            progress.report({
+              message: PROGRESS_TITLES.LOADING_SITE(site.name),
+            });
 
             const existingNode = this.treeData.get(site.id);
             if (
@@ -191,9 +397,7 @@ export class ScriptRegistry {
             ) {
               existingNode.hasBuilder = site.hasBuilder;
               existingNode.tooltip =
-                site.hasBuilder === false
-                  ? "Builder app is not installed on this site. Click to reload and check again."
-                  : undefined;
+                site.hasBuilder === false ? TOOLTIPS.NO_BUILDER : undefined;
               continue;
             }
 
@@ -206,9 +410,7 @@ export class ScriptRegistry {
               contextValue: "site",
               children: [],
               tooltip:
-                site.hasBuilder === false
-                  ? "Builder app is not installed on this site. Click to reload and check again."
-                  : undefined,
+                site.hasBuilder === false ? TOOLTIPS.NO_BUILDER : undefined,
             };
             this.treeData.set(site.id, siteNode);
           }
@@ -240,7 +442,7 @@ export class ScriptRegistry {
       vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: "Frappe Script Editor: Loading scripts…",
+          title: PROGRESS_TITLES.LOADING_SCRIPTS,
           cancellable: false,
         },
         async (progress) => {
@@ -248,33 +450,30 @@ export class ScriptRegistry {
             if (!site) continue;
             progress.report({ message: `Loading ${site.name}…` });
 
+            const baseSiteNode: ScriptTreeItemData = {
+              type: "site",
+              label: `${site.name}`,
+              siteId: site.id,
+              siteUrl: site.url,
+              hasBuilder: site.hasBuilder,
+              contextValue: "site",
+              children: [],
+            };
+
             if (site.isOffline === true) {
-              const siteNode: ScriptTreeItemData = {
-                type: "site",
-                label: `${site.name}`,
-                siteId: site.id,
-                siteUrl: site.url,
-                hasBuilder: site.hasBuilder,
+              const siteNode = {
+                ...baseSiteNode,
                 isOffline: site.isOffline,
-                contextValue: "site",
-                children: [],
-                tooltip: "Site is offline. Click to retry.",
+                tooltip: TOOLTIPS.SITE_OFFLINE,
               };
               this.treeData.set(site.id, siteNode);
               continue;
             }
 
             if (site.hasBuilder === false) {
-              const siteNode: ScriptTreeItemData = {
-                type: "site",
-                label: `${site.name}`,
-                siteId: site.id,
-                siteUrl: site.url,
-                hasBuilder: site.hasBuilder,
-                contextValue: "site",
-                children: [],
-                tooltip:
-                  "Builder app is not installed on this site. Click to reload and check again.",
+              const siteNode = {
+                ...baseSiteNode,
+                tooltip: TOOLTIPS.NO_BUILDER,
               };
               this.treeData.set(site.id, siteNode);
               continue;
@@ -286,7 +485,7 @@ export class ScriptRegistry {
             } catch (err: unknown) {
               const msg = err instanceof Error ? err.message : String(err);
               vscode.window.showWarningMessage(
-                `Failed to load scripts from "${site.name}": ${msg}`,
+                ERROR_MESSAGES.LOADING_SCRIPTS(site.name, msg),
               );
             }
           }
@@ -321,37 +520,26 @@ export class ScriptRegistry {
       const settings = await client.getBuilderSettings();
       const settingsNode: ScriptTreeItemData = {
         type: "settings",
-        label: "Builder Settings",
+        label: BUILDER_DOCTYPES.SETTINGS,
         siteId,
         children: [],
         iconId: "settings-gear",
       };
 
-      const settingsFields: Array<{
-        field: string;
-        displayName: string;
-        ext: string;
-      }> = [
-        { field: "script", displayName: "client script", ext: ".js" },
-        { field: "style", displayName: "style", ext: ".css" },
-        { field: "head_html", displayName: "Head code", ext: ".html" },
-        { field: "body_html", displayName: "Body code", ext: ".html" },
-      ];
-
-      for (const sf of settingsFields) {
-        const displayPath = `Builder Settings/${sf.displayName}${sf.ext}`;
+      for (const builderField of BUILDER_SETTINGS_FIELDS) {
+        const displayPath = `Builder Settings/${builderField.displayName}${builderField.ext}`;
         const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
         const ref: ScriptReference = {
           siteId,
           location: {
             type: "docField",
-            doctype: "Builder Settings",
-            docname: "Builder Settings",
-            fieldName: sf.field,
+            doctype: BUILDER_DOCTYPES.SETTINGS,
+            docname: BUILDER_DOCTYPES.SETTINGS,
+            fieldName: builderField.field,
           },
           scriptType: "clientScript",
-          fileExtension: sf.ext,
+          fileExtension: builderField.ext,
           displayPath,
         };
 
@@ -359,16 +547,16 @@ export class ScriptRegistry {
 
         // Cache content
         const value = (settings as unknown as Record<string, unknown>)[
-          sf.field
+          builderField.field
         ] as string | null;
         this.contentCache.set(uri.toString(), value || "");
 
         settingsNode.children!.push({
           type: "scriptFile",
-          label: `${sf.displayName}${sf.ext}`,
+          label: `${builderField.displayName}${builderField.ext}`,
           siteId,
           uri,
-          iconId: this.getIconForExtension(sf.ext),
+          iconId: this.getIconForExtension(builderField.ext),
         });
       }
 
@@ -376,7 +564,7 @@ export class ScriptRegistry {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       vscode.window.showWarningMessage(
-        `Failed to load Builder Settings for "${siteName}": ${msg}`,
+        ERROR_MESSAGES.LOADING_SETTINGS(siteName, msg),
       );
     }
 
@@ -392,14 +580,14 @@ export class ScriptRegistry {
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           vscode.window.showWarningMessage(
-            `Failed to load page "${pageSummary.page_name}": ${msg}`,
+            ERROR_MESSAGES.LOADING_PAGE(pageSummary.page_name, msg),
           );
         }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       vscode.window.showWarningMessage(
-        `Failed to list pages for "${siteName}": ${msg}`,
+        ERROR_MESSAGES.LISTING_PAGES(siteName, msg),
       );
     }
 
@@ -422,7 +610,7 @@ export class ScriptRegistry {
       label: pageLabel,
       siteId,
       children: [],
-      tooltip: `Route: ${doc.name}`,
+      tooltip: `${TOOLTIPS.ROUTE_PREFIX}${doc.name}`,
       iconId: "file-code",
     };
 
@@ -430,7 +618,7 @@ export class ScriptRegistry {
     if (doc.client_scripts && doc.client_scripts.length > 0) {
       const clientScriptsFolder: ScriptTreeItemData = {
         type: "clientScriptsFolder",
-        label: "client scripts",
+        label: FOLDER_LABELS.CLIENT_SCRIPTS,
         siteId,
         children: [],
         iconId: "folder",
@@ -448,9 +636,9 @@ export class ScriptRegistry {
             siteId,
             location: {
               type: "docField",
-              doctype: "Builder Client Script",
+              doctype: BUILDER_DOCTYPES.CLIENT_SCRIPT,
               docname: csDoc.name,
-              fieldName: "script",
+              fieldName: BUILDER_FIELDS.CLIENT_SCRIPT.SCRIPT,
             },
             scriptType: "clientScript",
             fileExtension: ext,
@@ -470,7 +658,7 @@ export class ScriptRegistry {
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           vscode.window.showWarningMessage(
-            `Failed to load client script "${csRow.builder_script}": ${msg}`,
+            ERROR_MESSAGES.LOADING_CLIENT_SCRIPT(csRow.builder_script, msg),
           );
         }
       }
@@ -480,16 +668,16 @@ export class ScriptRegistry {
 
     // ── Data script (single file) ───────────────────────────────────────
 
-    const displayPath = `${pageTitleSlug}/data script.py`;
+    const displayPath = `${pageTitleSlug}/${FOLDER_LABELS.DATA_SCRIPT}`;
     const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
     const ref: ScriptReference = {
       siteId,
       location: {
         type: "docField",
-        doctype: "Builder Page",
+        doctype: BUILDER_DOCTYPES.PAGE,
         docname: doc.name,
-        fieldName: "page_data_script",
+        fieldName: BUILDER_FIELDS.PAGE.PAGE_DATA_SCRIPT,
       },
       scriptType: "pageDataScript",
       fileExtension: ".py",
@@ -501,7 +689,7 @@ export class ScriptRegistry {
 
     pageNode.children!.push({
       type: "scriptFile",
-      label: "data script.py",
+      label: FOLDER_LABELS.DATA_SCRIPT,
       siteId,
       uri,
       iconId: "symbol-method",
@@ -522,7 +710,7 @@ export class ScriptRegistry {
         if (blockScriptNodes.length > 0) {
           const pageBlocksFolder: ScriptTreeItemData = {
             type: "pageBlocksFolder",
-            label: "page blocks",
+            label: FOLDER_LABELS.PAGE_BLOCKS,
             siteId,
             children: blockScriptNodes,
             iconId: "folder",
@@ -535,10 +723,16 @@ export class ScriptRegistry {
     }
 
     // ── Head code & Body code ───────────────────────────────────────────
-    for (const field of ["head_html", "body_html"] as const) {
+    for (const field of [
+      BUILDER_FIELDS.PAGE.HEAD_HTML,
+      BUILDER_FIELDS.PAGE.BODY_HTML,
+    ] as const) {
       const value = doc[field] as string | null;
 
-      const displayName = field === "head_html" ? "Head code" : "Body code";
+      const displayName =
+        field === BUILDER_FIELDS.PAGE.HEAD_HTML
+          ? PAGE_SCRIPT_FIELDS[field].label
+          : PAGE_SCRIPT_FIELDS[field].label;
       const displayPath = `${pageTitleSlug}/${displayName}.html`;
       const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
@@ -546,7 +740,7 @@ export class ScriptRegistry {
         siteId,
         location: {
           type: "docField",
-          doctype: "Builder Page",
+          doctype: BUILDER_DOCTYPES.PAGE,
           docname: doc.name,
           fieldName: field,
         },
@@ -570,10 +764,6 @@ export class ScriptRegistry {
     return pageNode;
   }
 
-  /**
-   * Recursively walk the block tree and extract blocks that have scripts.
-   * Returns tree nodes for blocks with blockClientScript or blockDataScript.
-   */
   private extractBlockScripts(
     siteId: string,
     docname: string,
@@ -604,17 +794,17 @@ export class ScriptRegistry {
         };
 
         if (hasClientScript && block.blockId) {
-          const displayPath = `${pageName}/page blocks/${blockPath}/client script.js`;
+          const displayPath = `${pageName}/${FOLDER_LABELS.PAGE_BLOCKS}/${blockPath}/${FOLDER_LABELS.CLIENT_SCRIPT}`;
           const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
           const ref: ScriptReference = {
             siteId,
             location: {
               type: "blockScript",
-              doctype: "Builder Page",
+              doctype: BUILDER_DOCTYPES.PAGE,
               docname,
               blockId: block.blockId,
-              blockField: "blockClientScript",
+              blockField: BUILDER_FIELDS.BLOCK.CLIENT_SCRIPT,
             },
             scriptType: "blockClientScript",
             fileExtension: ".js",
@@ -626,7 +816,7 @@ export class ScriptRegistry {
 
           blockFolder.children!.push({
             type: "scriptFile",
-            label: "client script.js",
+            label: FOLDER_LABELS.CLIENT_SCRIPT,
             siteId,
             uri,
             iconId: "symbol-event",
@@ -634,17 +824,17 @@ export class ScriptRegistry {
         }
 
         if (hasDataScript && block.blockId) {
-          const displayPath = `${pageName}/page blocks/${blockPath}/data script.py`;
+          const displayPath = `${pageName}/${FOLDER_LABELS.PAGE_BLOCKS}/${blockPath}/${FOLDER_LABELS.DATA_SCRIPT_PY}`;
           const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
           const ref: ScriptReference = {
             siteId,
             location: {
               type: "blockScript",
-              doctype: "Builder Page",
+              doctype: BUILDER_DOCTYPES.PAGE,
               docname,
               blockId: block.blockId,
-              blockField: "blockDataScript",
+              blockField: BUILDER_FIELDS.BLOCK.DATA_SCRIPT,
             },
             scriptType: "blockDataScript",
             fileExtension: ".py",
@@ -656,7 +846,7 @@ export class ScriptRegistry {
 
           blockFolder.children!.push({
             type: "scriptFile",
-            label: "data script.py",
+            label: FOLDER_LABELS.DATA_SCRIPT_PY,
             siteId,
             uri,
             iconId: "symbol-method",
@@ -686,128 +876,22 @@ export class ScriptRegistry {
 
     return nodes;
   }
-  /**
-   * Register a single block script entry on-demand (called when opening a
-   * script that didn't previously exist). Adds it to both the registry
-   * and the tree so it appears immediately in the sidebar.
-   */
-  registerBlockScript(
-    siteId: string,
-    docname: string,
-    blockId: string,
-    blockField: "blockClientScript" | "blockDataScript",
-    pageTitleSlug: string,
-    content: string,
-    blocks: BlockNode[],
-  ): { uri: vscode.Uri; ref: ScriptReference } {
-    const block = this.findBlockInTree(blocks, blockId);
-    if (!block) {
-      throw new Error(`Block "${blockId}" not found in page "${docname}"`);
+
+  private getIconForExtension(ext: string): string {
+    switch (ext) {
+      case ".js":
+        return "symbol-event";
+      case ".py":
+        return "symbol-method";
+      case ".html":
+        return "code";
+      case ".css":
+        return "symbol-color";
+      default:
+        return "file";
     }
-
-    const blockLabel = block.blockName || block.blockId || "unnamed-block";
-    const parentPath = this.findBlockParentPath(blocks, blockId);
-    const blockPath = parentPath
-      ? `${parentPath}/${sanitizeName(blockLabel)}-${blockId}`
-      : `${sanitizeName(blockLabel)}-${blockId}`;
-
-    const isClient = blockField === "blockClientScript";
-    const ext = isClient ? ".js" : ".py";
-    const fileName = isClient ? "client script.js" : "data script.py";
-    const displayPath = `${pageTitleSlug}/page blocks/${blockPath}/${fileName}`;
-    const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
-
-    const ref: ScriptReference = {
-      siteId,
-      location: {
-        type: "blockScript",
-        doctype: "Builder Page",
-        docname,
-        blockId,
-        blockField,
-      },
-      scriptType: isClient ? "blockClientScript" : "blockDataScript",
-      fileExtension: ext,
-      displayPath,
-    };
-
-    this.registry.set(uri.toString(), ref);
-    this.contentCache.set(uri.toString(), content);
-
-    // ── Insert into tree ──────────────────────────────────────────────
-    const siteNode = this.treeData.get(siteId);
-    if (siteNode?.children) {
-      // Find the page node that owns this docname
-      for (const pageNode of siteNode.children) {
-        if (pageNode.type !== "page") continue;
-        if (pageNode.tooltip !== `Route: ${docname}`) continue;
-
-        // Find or create "page blocks" folder
-        let blocksFolder = pageNode.children?.find(
-          (c) => c.type === "pageBlocksFolder",
-        );
-        if (!blocksFolder) {
-          blocksFolder = {
-            type: "pageBlocksFolder",
-            label: "page blocks",
-            siteId,
-            children: [],
-            iconId: "folder",
-          };
-          pageNode.children!.push(blocksFolder);
-        }
-
-        // Find or create the block folder
-        let blockFolder = blocksFolder.children?.find(
-          (c) => c.type === "blockFolder" && c.label === blockLabel,
-        );
-        if (!blockFolder) {
-          blockFolder = {
-            type: "blockFolder",
-            label: blockLabel,
-            siteId,
-            children: [],
-            iconId: "symbol-structure",
-          };
-          blocksFolder.children!.push(blockFolder);
-        }
-
-        // Add the script file node
-        blockFolder.children!.push({
-          type: "scriptFile",
-          label: fileName,
-          siteId,
-          uri,
-          iconId: isClient ? "symbol-event" : "symbol-method",
-        });
-
-        break;
-      }
-    }
-
-    this._onDidChange.fire();
-    return { uri, ref };
   }
 
-  private findBlockInTree(
-    blocks: BlockNode[],
-    blockId: string,
-  ): BlockNode | null {
-    for (const block of blocks) {
-      if (!block) continue;
-      if (block.blockId === blockId) return block;
-      if (block.children && block.children.length > 0) {
-        const found = this.findBlockInTree(block.children, blockId);
-        if (found) return found;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Compute the parent path for a given blockId, matching the logic in
-   * extractBlockScripts. Walks the block tree to build the ancestor path.
-   */
   private findBlockParentPath(
     blocks: BlockNode[],
     targetBlockId: string,
@@ -836,149 +920,27 @@ export class ScriptRegistry {
     return null;
   }
 
-  /**
-   * Register a page-level doc field script on-demand (data script, head/body code).
-   * Adds it to both the registry and the tree so it appears immediately.
-   */
-  registerDocFieldScript(
-    siteId: string,
-    doctype: string,
-    docname: string,
-    fieldName: string,
-    pageTitleSlug: string,
-    content: string,
-  ): { uri: vscode.Uri; ref: ScriptReference } {
-    const fieldConfig: Record<
-      string,
-      { label: string; ext: string; scriptType: ScriptType; iconId: string }
-    > = {
-      page_data_script: {
-        label: "data script",
-        ext: ".py",
-        scriptType: "pageDataScript",
-        iconId: "symbol-method",
-      },
-      head_html: {
-        label: "Head code",
-        ext: ".html",
-        scriptType: "clientScript",
-        iconId: "code",
-      },
-      body_html: {
-        label: "Body code",
-        ext: ".html",
-        scriptType: "clientScript",
-        iconId: "code",
-      },
-    };
-
-    const config = fieldConfig[fieldName];
-    if (!config) {
-      throw new Error(
-        `Unknown field "${fieldName}" for on-demand registration`,
-      );
-    }
-
-    const displayPath = `${pageTitleSlug}/${config.label}${config.ext}`;
-    const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
-
-    const ref: ScriptReference = {
-      siteId,
-      location: {
-        type: "docField",
-        doctype,
-        docname,
-        fieldName,
-      },
-      scriptType: config.scriptType,
-      fileExtension: config.ext,
-      displayPath,
-    };
-
-    this.registry.set(uri.toString(), ref);
-    this.contentCache.set(uri.toString(), content);
-
-    // ── Insert into tree ──────────────────────────────────────────────
-    const siteNode = this.treeData.get(siteId);
-    if (siteNode?.children) {
-      for (const pageNode of siteNode.children) {
-        if (pageNode.type !== "page") continue;
-        if (pageNode.tooltip !== `Route: ${docname}`) continue;
-
-        pageNode.children!.push({
-          type: "scriptFile",
-          label: `${config.label}${config.ext}`,
-          siteId,
-          uri,
-          iconId: config.iconId,
-        });
-
-        break;
+  private findBlockInTree(
+    blocks: BlockNode[],
+    blockId: string,
+  ): BlockNode | null {
+    for (const block of blocks) {
+      if (!block) continue;
+      if (block.blockId === blockId) return block;
+      if (block.children && block.children.length > 0) {
+        const found = this.findBlockInTree(block.children, blockId);
+        if (found) return found;
       }
     }
-
-    this._onDidChange.fire();
-    return { uri, ref };
+    return null;
   }
 
-  private getIconForExtension(ext: string): string {
-    switch (ext) {
-      case ".js":
-        return "symbol-event";
-      case ".py":
-        return "symbol-method";
-      case ".html":
-        return "code";
-      case ".css":
-        return "symbol-color";
-      default:
-        return "file";
-    }
-  }
-
-  /**
-   * Find a script reference by matching site URL, doctype, docname, and field/blockId.
-   * Used by the HTTP server to locate scripts requested from the browser.
-   */
-  findByDocReference(
-    siteUrl: string,
-    doctype: string,
-    docname: string,
-    field?: string,
-    blockId?: string,
-    blockField?: string,
-  ): { uri: vscode.Uri; ref: ScriptReference } | undefined {
-    const incomingHostname = extractHostname(siteUrl);
-
+  private clearSiteRegistryData(siteId: string): void {
     for (const [uriStr, ref] of this.registry.entries()) {
-      const site = this.siteManager.getSites().find((s) => s.id === ref.siteId);
-      if (!site) continue;
-
-      // Try exact normalized URL match first, then fall back to hostname
-      const urlMatch =
-        normalizeUrl(site.url) === normalizeUrl(siteUrl) ||
-        extractHostname(site.url) === incomingHostname;
-      if (!urlMatch) continue;
-
-      if (blockId && ref.location.type === "blockScript") {
-        if (
-          ref.location.doctype === doctype &&
-          ref.location.docname === docname &&
-          ref.location.blockId === blockId &&
-          (!blockField || ref.location.blockField === blockField)
-        ) {
-          return { uri: vscode.Uri.parse(uriStr), ref };
-        }
-      } else if (!blockId && ref.location.type === "docField") {
-        if (
-          ref.location.doctype === doctype &&
-          ref.location.docname === docname &&
-          (!field || ref.location.fieldName === field)
-        ) {
-          return { uri: vscode.Uri.parse(uriStr), ref };
-        }
+      if (ref.siteId === siteId) {
+        this.registry.delete(uriStr);
+        this.contentCache.delete(uriStr);
       }
     }
-    return undefined;
   }
 }

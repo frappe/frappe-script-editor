@@ -8,6 +8,7 @@
 
 import * as vscode from "vscode";
 import * as crypto from "crypto";
+import { BUILDER_DOCTYPES, ERROR_MESSAGES } from "./builderConfig";
 import type { SiteManager } from "./siteManager";
 import type { ScriptRegistry } from "./scriptRegistry";
 import type { BlockNode } from "./types";
@@ -83,13 +84,13 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
       if (ref.location.type === "docField") {
         const { doctype, docname, fieldName } = ref.location;
 
-        if (doctype === "Builder Settings") {
+        if (doctype === BUILDER_DOCTYPES.SETTINGS) {
           const settings = await client.getBuilderSettings();
           content =
             ((settings as unknown as Record<string, unknown>)[
               fieldName
             ] as string) || "";
-        } else if (doctype === "Builder Client Script") {
+        } else if (doctype === BUILDER_DOCTYPES.CLIENT_SCRIPT) {
           const csDoc = await client.getClientScript(docname);
           content = csDoc.script || "";
         } else {
@@ -106,10 +107,7 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
         const block = findBlockById(blocks, blockId);
         content = block ? (block[blockField] as string) || "" : "";
 
-        const hash = crypto
-          .createHash("sha256")
-          .update(json)
-          .digest("hex");
+        const hash = crypto.createHash("sha256").update(json).digest("hex");
         this.blocksHash.set(uri.toString(), hash);
       }
 
@@ -147,7 +145,8 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
       } else if (ref.location.type === "blockScript") {
         const { docname, blockId, blockField } = ref.location;
 
-        const { json: currentJson, field } = await client.getPageBlocksRaw(docname);
+        const { json: currentJson, field } =
+          await client.getPageBlocksRaw(docname);
         const currentHash = crypto
           .createHash("sha256")
           .update(currentJson)
@@ -164,7 +163,9 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
           );
 
           if (choice !== "Force Save") {
-            this.outputChannel.appendLine("⚠️ Save cancelled due to external changes");
+            this.outputChannel.appendLine(
+              "⚠️ Save cancelled due to external changes",
+            );
             throw vscode.FileSystemError.Unavailable(
               "Save cancelled: blocks were modified externally",
             );
@@ -175,9 +176,7 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
         const block = findBlockById(blocks, blockId);
 
         if (!block) {
-          throw new Error(
-            `Block "${blockId}" not found in page "${docname}". The block may have been removed.`,
-          );
+          throw new Error(ERROR_MESSAGES.BLOCK_NOT_FOUND(blockId, docname));
         }
 
         (block as Record<string, unknown>)[blockField] = text;
@@ -240,9 +239,6 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
   }
 }
 
-/**
- * Recursively search the block tree for a block with the given blockId.
- */
 export function findBlockById(
   blocks: BlockNode[],
   blockId: string,

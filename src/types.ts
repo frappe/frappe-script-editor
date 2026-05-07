@@ -1,4 +1,7 @@
 import * as vscode from "vscode";
+import { BUILDER_DOCTYPES } from "./builderConfig";
+
+export type BlockFieldScript = "blockClientScript" | "blockDataScript";
 
 export interface FrappeSiteConfig {
   id: string;
@@ -29,11 +32,11 @@ export type ScriptLocation =
   | { type: "docField"; doctype: string; docname: string; fieldName: string }
   | {
       type: "blockScript";
-      doctype: "Builder Page";
+      doctype: typeof BUILDER_DOCTYPES.PAGE;
       docname: string;
 
       blockId: string;
-      blockField: "blockClientScript" | "blockDataScript";
+      blockField: BlockFieldScript;
     };
 
 export interface ScriptReference {
@@ -119,5 +122,5 @@ export interface OpenScriptRequest {
   docname: string;
   field?: string;
   blockId?: string;
-  blockField?: string;
+  blockField?: BlockFieldScript;
 }

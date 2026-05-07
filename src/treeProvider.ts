@@ -35,7 +35,6 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
     const isCollapsible =
       element.children !== undefined && element.children.length > 0;
 
-    // Determine collapsible state based on node type
     let collapsibleState: vscode.TreeItemCollapsibleState;
     if (!isCollapsible) {
       collapsibleState = vscode.TreeItemCollapsibleState.None;

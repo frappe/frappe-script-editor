@@ -12,7 +12,6 @@ export function generateId(): string {
 
 export function normalizeUrl(url: string): string {
   let normalized = url.trim().toLowerCase();
-  // Add protocol if missing so URL parsing works consistently
   if (!/^https?:\/\//i.test(normalized)) {
     normalized = `http://${normalized}`;
   }
@@ -27,7 +26,6 @@ export function extractHostname(url: string): string {
   try {
     return new URL(normalized).hostname;
   } catch {
-    // If URL parsing fails, strip protocol/port manually
     return normalized
       .replace(/^https?:\/\//, "")
       .replace(/:\d+.*$/, "")

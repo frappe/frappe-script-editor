@@ -12,7 +12,8 @@ import {
   TEMP_SCHEME,
   getCleanTempUri,
 } from "./tempFileSystemProvider";
-import type { BlockNode } from "./types";
+import { BUILDER_DOCTYPES, ERROR_MESSAGES } from "./builderConfig";
+import type { BlockFieldScript, BlockNode } from "./types";
 import { sanitizeName } from "./utils";
 
 let httpServer: HttpServer | null = null;
@@ -528,7 +529,7 @@ export async function activate(
     docname: string,
     field: string | undefined,
     blockId: string | undefined,
-    blockField: string | undefined,
+    blockField: BlockFieldScript,
   ): Promise<{
     uri: vscode.Uri;
     ref: import("./types").ScriptReference;
@@ -543,16 +544,15 @@ export async function activate(
 
     const client = await siteManager.getClient(site.id);
 
-    if (doctype === "Builder Page" && docname && blockId && blockField) {
+    if (doctype === BUILDER_DOCTYPES.PAGE && docname && blockId && blockField) {
       // Block-level script: update the block JSON, then register in-place
       const { json, field: blocksField } =
         await client.getPageBlocksRaw(docname);
       const blocks: BlockNode[] = JSON.parse(json);
       const block = findBlockById(blocks, blockId);
       if (!block) {
-        throw new Error(`Block "${blockId}" not found in page "${docname}"`);
+        throw new Error(ERROR_MESSAGES.BLOCK_NOT_FOUND(blockId, docname));
       }
-      (block as Record<string, unknown>)[blockField] = "";
       await client.updatePageBlocks(
         docname,
         blocksField,
@@ -568,16 +568,16 @@ export async function activate(
         site.id,
         docname,
         blockId,
-        blockField as "blockClientScript" | "blockDataScript",
+        blockField,
         pageTitleSlug,
         "",
         blocks,
       );
-    } else if (doctype === "Builder Page" && docname && field) {
+    } else if (doctype === BUILDER_DOCTYPES.PAGE && docname && field) {
       // Page-level doc field script (data script, head/body code)
       const pageDoc = await client.getPageDoc(docname);
       if (!pageDoc) {
-        throw new Error(`Builder Page "${docname}" not found`);
+        throw new Error(ERROR_MESSAGES.PAGE_NOT_FOUND(docname));
       }
       await client.updateField(doctype, docname, field, "");
 
@@ -603,7 +603,7 @@ export async function activate(
     docname: string,
     field: string | undefined,
     blockId: string | undefined,
-    blockField: string | undefined,
+    blockField: BlockFieldScript,
   ): Promise<boolean> => {
     const result = registry.findByDocReference(
       siteUrl,
@@ -654,7 +654,8 @@ export async function activate(
         const docname = query.get("docname");
         const field = query.get("field") || undefined;
         const blockId = query.get("blockId") || undefined;
-        const blockField = query.get("blockField") || undefined;
+        const blockField: BlockFieldScript =
+          (query.get("blockField") as BlockFieldScript) || "blockClientScript";
 
         outputChannel.appendLine("URI Handler:");
         outputChannel.appendLine(

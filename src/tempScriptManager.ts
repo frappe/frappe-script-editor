@@ -50,13 +50,11 @@ export class TempScriptManager {
     let blockName = "root";
     let scriptFile = pathParts[pathParts.length - 1];
 
-    // Look for "page blocks" in the path to identify block name
+    // Extract block name from path - prioritize "page blocks" folder or use parent folder
     const pageBlocksIndex = pathParts.indexOf("page blocks");
     if (pageBlocksIndex !== -1 && pageBlocksIndex < pathParts.length - 1) {
-      // The block name is the directory right after "page blocks"
       blockName = pathParts[pageBlocksIndex + 1];
     } else if (pathParts.length >= 3 && pathParts[1] !== "page blocks") {
-      // For nested paths without "page blocks" folder (e.g., page/blocks/block-name/script.js)
       blockName = pathParts[pathParts.length - 2];
     }
 

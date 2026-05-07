@@ -1,5 +1,5 @@
 /**
- * FileSystemProvider for clean temp file URIs.
+ * FileSystemProvider for clean temporary file URIs.
  *
  */
 
