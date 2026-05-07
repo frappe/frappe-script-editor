@@ -51,6 +51,8 @@ export class ScriptRegistry {
 
   private contentCache = new Map<string, string>();
 
+  private blockPathCache = new Map<string, Map<string, string>>();
+
   private loadingPromise: Promise<void> = Promise.resolve();
 
   private isLoading = false;
@@ -117,10 +119,21 @@ export class ScriptRegistry {
     }
 
     const blockLabel = block.blockName || block.blockId || "unnamed-block";
-    const parentPath = this.findBlockParentPath(blocks, blockId);
-    const blockPath = parentPath
-      ? `${parentPath}/${sanitizeName(blockLabel)}-${blockId}`
-      : `${sanitizeName(blockLabel)}-${blockId}`;
+    const cacheKey = `${siteId}:${docname}`;
+    const pathCache = this.blockPathCache.get(cacheKey);
+    let blockPath: string;
+
+    if (pathCache && pathCache.has(blockId)) {
+      blockPath = pathCache.get(blockId)!;
+    } else {
+      const parentPath = this.findBlockParentPath(blocks, blockId);
+      blockPath = parentPath
+        ? `${parentPath}/${sanitizeName(blockLabel)}-${blockId}`
+        : `${sanitizeName(blockLabel)}-${blockId}`;
+      if (pathCache) {
+        pathCache.set(blockId, blockPath);
+      }
+    }
 
     const isClient = blockField === BUILDER_FIELDS.BLOCK.CLIENT_SCRIPT;
     const ext = isClient ? ".js" : ".py";
@@ -788,6 +801,12 @@ export class ScriptRegistry {
     parentPath: string = "",
   ): ScriptTreeItemData[] {
     const nodes: ScriptTreeItemData[] = [];
+    const cacheKey = `${siteId}:${docname}`;
+    let pathCache = this.blockPathCache.get(cacheKey);
+    if (!pathCache) {
+      pathCache = new Map();
+      this.blockPathCache.set(cacheKey, pathCache);
+    }
 
     for (const block of blocks) {
       if (!block) continue;
@@ -800,6 +819,10 @@ export class ScriptRegistry {
         const blockPath = parentPath
           ? `${parentPath}/${sanitizeName(blockLabel)}-${block.blockId}`
           : `${sanitizeName(blockLabel)}-${block.blockId}`;
+
+        if (block.blockId) {
+          pathCache.set(block.blockId, blockPath);
+        }
 
         const blockFolder: ScriptTreeItemData = {
           type: "blockFolder",
@@ -967,6 +990,12 @@ export class ScriptRegistry {
         this.docRefIndex.delete(key);
         this.registry.delete(uriStr);
         this.contentCache.delete(uriStr);
+      }
+    }
+
+    for (const [cacheKey] of this.blockPathCache.entries()) {
+      if (cacheKey.startsWith(`${siteId}:`)) {
+        this.blockPathCache.delete(cacheKey);
       }
     }
   }
