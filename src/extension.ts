@@ -16,15 +16,13 @@ import { registerUriHandler } from "./subscriptions/registerUriHandler";
 import { startHttpServer } from "./subscriptions/startHttpServer";
 import { onDidChangeWindowState } from "./subscriptions/onDidChangeWindowState";
 
-let httpServer: HttpServer | null = null;
-let tempScriptManager: TempScriptManager | null = null;
-
 export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<void> {
   const outputChannel = vscode.window.createOutputChannel(
     "Frappe Script Editor",
   );
+  context.subscriptions.push(outputChannel);
   outputChannel.appendLine("Frappe Script Editor activated.");
 
   // ── Core services ─────────────────────────────────────────────────────
@@ -35,7 +33,7 @@ export async function activate(
 
   // ── Temp script manager ─────────────────────────────────────────────
 
-  tempScriptManager = new TempScriptManager();
+  const tempScriptManager = new TempScriptManager();
   tempScriptManager.cleanup();
   tempScriptManager.ensureTempDir();
 
@@ -112,9 +110,8 @@ export async function activate(
 
   // ── HTTP server ────────────────────────────────────────────────────────
 
-  const { disposable: httpDisposable } = await startHttpServer(outputChannel);
+  const httpDisposable = await startHttpServer(outputChannel);
   context.subscriptions.push(httpDisposable);
-  httpServer = httpDisposable as unknown as HttpServer;
 
   // ── Initial load ─────────────────────────────────────────────────
 
@@ -144,11 +141,4 @@ export async function activate(
       outputChannel,
     ),
   );
-}
-
-export function deactivate(): void {
-  httpServer?.stop();
-  httpServer = null;
-  tempScriptManager?.cleanup();
-  tempScriptManager = null;
 }

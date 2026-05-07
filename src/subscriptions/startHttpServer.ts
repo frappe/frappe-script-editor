@@ -4,7 +4,7 @@ import { HttpServer } from "../httpServer";
 
 export async function startHttpServer(
   outputChannel: vscode.OutputChannel,
-): Promise<{ disposable: vscode.Disposable; httpServer: HttpServer }> {
+): Promise<vscode.Disposable> {
   const port = await portfinder.getPortPromise({
     port: 59000,
     stopPort: 59021,
@@ -13,11 +13,9 @@ export async function startHttpServer(
   const httpServer = new HttpServer(port, outputChannel);
   httpServer.start();
 
-  const disposable = {
+  return {
     dispose: () => {
       httpServer.stop();
     },
   };
-
-  return { disposable, httpServer };
 }
