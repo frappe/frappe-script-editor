@@ -7,6 +7,7 @@
  */
 
 import * as vscode from "vscode";
+import * as crypto from "crypto";
 import type { SiteManager } from "./siteManager";
 import type { ScriptRegistry } from "./scriptRegistry";
 import type { BlockNode } from "./types";
@@ -21,6 +22,7 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
   private siteManager: SiteManager;
   private registry: ScriptRegistry;
   private outputChannel: vscode.OutputChannel;
+  private blocksHash = new Map<string, string>();
 
   constructor(
     siteManager: SiteManager,
@@ -99,10 +101,16 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
         }
       } else if (ref.location.type === "blockScript") {
         const { docname, blockId, blockField } = ref.location;
-        const { json } = await client.getPageBlocksRaw(docname);
+        const { json, field } = await client.getPageBlocksRaw(docname);
         const blocks: BlockNode[] = JSON.parse(json);
         const block = findBlockById(blocks, blockId);
         content = block ? (block[blockField] as string) || "" : "";
+
+        const hash = crypto
+          .createHash("sha256")
+          .update(json)
+          .digest("hex");
+        this.blocksHash.set(uri.toString(), hash);
       }
 
       this.registry.setCachedContent(uri, content);
@@ -139,9 +147,31 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
       } else if (ref.location.type === "blockScript") {
         const { docname, blockId, blockField } = ref.location;
 
-        // Re-fetch current blocks to avoid overwriting concurrent changes
-        const { json, field } = await client.getPageBlocksRaw(docname);
-        const blocks: BlockNode[] = JSON.parse(json);
+        const { json: currentJson, field } = await client.getPageBlocksRaw(docname);
+        const currentHash = crypto
+          .createHash("sha256")
+          .update(currentJson)
+          .digest("hex");
+
+        const storedHash = this.blocksHash.get(uri.toString());
+        if (storedHash && storedHash !== currentHash) {
+          const choice = await vscode.window.showWarningMessage(
+            "The page blocks have been modified externally (e.g., in Frappe Builder). " +
+              "Saving now will overwrite those changes.",
+            { modal: true },
+            "Force Save",
+            "Cancel",
+          );
+
+          if (choice !== "Force Save") {
+            this.outputChannel.appendLine("⚠️ Save cancelled due to external changes");
+            throw vscode.FileSystemError.Unavailable(
+              "Save cancelled: blocks were modified externally",
+            );
+          }
+        }
+
+        const blocks: BlockNode[] = JSON.parse(currentJson);
         const block = findBlockById(blocks, blockId);
 
         if (!block) {
@@ -152,6 +182,13 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
 
         (block as Record<string, unknown>)[blockField] = text;
         await client.updatePageBlocks(docname, field, JSON.stringify(blocks));
+
+        const newHash = crypto
+          .createHash("sha256")
+          .update(JSON.stringify(blocks))
+          .digest("hex");
+        this.blocksHash.set(uri.toString(), newHash);
+
         this.outputChannel.appendLine(
           `✅ Saved ${blockField} on block "${blockId}" in page "${docname}"`,
         );
