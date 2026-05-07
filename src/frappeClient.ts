@@ -3,9 +3,6 @@
  *
  */
 
-import * as http from "http";
-import * as https from "https";
-import { URL } from "url";
 import type {
   FrappeBuilderSettingsDoc,
   FrappeClientScriptDoc,
@@ -26,72 +23,44 @@ export class FrappeClient {
 
   // ── Internal HTTP helper ────────────────────────────────────────────────
 
-  private request<T = unknown>(
+  private async request<T = unknown>(
     method: string,
     path: string,
     body?: Record<string, unknown>,
   ): Promise<T> {
-    return new Promise((resolve, reject) => {
-      const url = new URL(path, this.baseUrl);
-      const mod = url.protocol === "https:" ? https : http;
-
-      const options: http.RequestOptions = {
-        method,
-        hostname: url.hostname,
-        port: url.port || (url.protocol === "https:" ? 443 : 80),
-        path: url.pathname + url.search,
-        headers: {
-          Authorization: `token ${this.apiKey}:${this.apiSecret}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-      };
-
-      const req = mod.request(options, (res) => {
-        let data = "";
-        res.on("data", (chunk: Buffer) => (data += chunk.toString()));
-        res.on("end", () => {
-          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-            try {
-              resolve(JSON.parse(data) as T);
-            } catch {
-              resolve(data as unknown as T);
-            }
-          } else {
-            let message = `HTTP ${res.statusCode}`;
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.exc_type) {
-                message += `: ${parsed.exc_type}`;
-              }
-              if (parsed._server_messages) {
-                const msgs = JSON.parse(parsed._server_messages);
-                if (Array.isArray(msgs) && msgs.length > 0) {
-                  try {
-                    const inner = JSON.parse(msgs[0]);
-                    message += ` — ${inner.message || msgs[0]}`;
-                  } catch {
-                    message += ` — ${msgs[0]}`;
-                  }
-                }
-              }
-            } catch {
-              if (data.length < 500) {
-                message += `: ${data}`;
-              }
-            }
-            reject(new Error(message));
-          }
-        });
-      });
-
-      req.on("error", (err) => reject(err));
-
-      if (body) {
-        req.write(JSON.stringify(body));
-      }
-      req.end();
+    const url = new URL(path, this.baseUrl);
+    const response = await fetch(url, {
+      method,
+      headers: {
+        Authorization: `token ${this.apiKey}:${this.apiSecret}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: body ? JSON.stringify(body) : undefined,
     });
+
+    const text = await response.text();
+
+    if (response.ok) {
+      try {
+        return JSON.parse(text) as T;
+      } catch {
+        return text as unknown as T;
+      }
+    }
+
+    let message = `HTTP ${response.status}`;
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed.exc_type) {
+        message += `: ${parsed.exc_type}`;
+      }
+    } catch {
+      if (text.length < 500) {
+        message += `: ${text}`;
+      }
+    }
+    throw new Error(message);
   }
 
   // ── Public API methods ──────────────────────────────────────────────────
@@ -104,15 +73,22 @@ export class FrappeClient {
     return res.message;
   }
 
-  /**
-   * Check if the Builder module is installed by trying to fetch the Module Def.
-   * Returns true if installed, false otherwise.
-   */
   async checkBuilderInstalled(): Promise<boolean> {
     try {
       await this.request("GET", `/api/resource/Module Def/Builder`);
       return true;
-    } catch {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (
+        message?.includes("fetch failed") ||
+        message?.includes("ECONNREFUSED") ||
+        message?.includes("ENOTFOUND") ||
+        message?.includes("Timeout") ||
+        message?.includes("SSL") ||
+        message?.includes("TLS")
+      ) {
+        throw err;
+      }
       return false;
     }
   }
