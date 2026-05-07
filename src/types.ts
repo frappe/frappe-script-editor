@@ -7,6 +7,7 @@ export interface FrappeSiteConfig {
   apiKey: string;
 
   hasBuilder: boolean | null;
+  isOffline: boolean | null;
 }
 
 export interface StoredSiteConfig {
@@ -15,6 +16,7 @@ export interface StoredSiteConfig {
   url: string;
   apiKey: string;
   hasBuilder: boolean | null;
+  isOffline: boolean | null;
 }
 
 export type ScriptType =
@@ -58,6 +60,7 @@ export interface ScriptTreeItemData {
   siteId: string;
   siteUrl?: string;
   hasBuilder?: boolean | null;
+  isOffline?: boolean | null;
 
   uri?: vscode.Uri;
 

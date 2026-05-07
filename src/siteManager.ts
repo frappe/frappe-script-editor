@@ -68,9 +68,11 @@ export class SiteManager {
     }
 
     let hasBuilder: boolean | null = null;
+    let isOffline: boolean | null = null;
     try {
       hasBuilder = await client.checkBuilderInstalled();
     } catch {
+      isOffline = true;
       hasBuilder = null;
     }
 
@@ -80,6 +82,7 @@ export class SiteManager {
       url,
       apiKey,
       hasBuilder,
+      isOffline,
     };
 
     await this.secrets.store(SECRET_PREFIX + site.id, apiSecret);
@@ -107,8 +110,10 @@ export class SiteManager {
     try {
       const client = await this.getClient(id);
       site.hasBuilder = await client.checkBuilderInstalled();
+      site.isOffline = false;
     } catch {
       site.hasBuilder = null;
+      site.isOffline = true;
     }
 
     await this.persistSites();
@@ -142,6 +147,7 @@ export class SiteManager {
     this.sites = stored.map((s) => ({
       ...s,
       hasBuilder: s.hasBuilder ?? null,
+      isOffline: s.isOffline ?? null,
     }));
   }
 
@@ -152,6 +158,7 @@ export class SiteManager {
       url: s.url,
       apiKey: s.apiKey,
       hasBuilder: s.hasBuilder,
+      isOffline: s.isOffline,
     }));
     await this.globalState.update(SITES_STORAGE_KEY, toStore);
   }

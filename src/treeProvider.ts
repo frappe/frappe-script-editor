@@ -98,7 +98,11 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
       let statusText: string;
       let iconColor: vscode.ThemeColor;
 
-      if (element.hasBuilder === true) {
+      if (element.isOffline === true) {
+        statusIcon = "error";
+        statusText = "Site offline";
+        iconColor = new vscode.ThemeColor("problemsErrorIcon.foreground");
+      } else if (element.hasBuilder === true) {
         statusIcon = "pass-filled";
         statusText = "Builder detected";
         iconColor = new vscode.ThemeColor("testing.iconPassed");
@@ -107,7 +111,7 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
         statusText = "Builder not installed";
         iconColor = new vscode.ThemeColor("problemsWarningIcon.foreground");
       } else {
-        statusIcon = "error";
+        statusIcon = "circle-large-filled";
         statusText = "Status unknown";
         iconColor = new vscode.ThemeColor("problemsErrorIcon.foreground");
       }

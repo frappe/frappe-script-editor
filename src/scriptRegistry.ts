@@ -90,10 +90,36 @@ export class ScriptRegistry {
     if (existingNode) {
       existingNode.children = [];
       existingNode.hasBuilder = site.hasBuilder;
-      existingNode.tooltip =
-        site.hasBuilder === false
-          ? "Builder app is not installed on this site. Click to reload and check again."
-          : undefined;
+      existingNode.isOffline = site.isOffline;
+
+      if (site.isOffline === true) {
+        existingNode.tooltip = "Site is offline. Click to retry.";
+      } else if (site.hasBuilder === false) {
+        existingNode.tooltip =
+          "Builder app is not installed on this site. Click to reload and check again.";
+      } else {
+        existingNode.tooltip = undefined;
+      }
+    }
+
+    if (site.isOffline === true) {
+      if (!existingNode) {
+        const siteNode: ScriptTreeItemData = {
+          type: "site",
+          label: `${site.name}`,
+          siteId,
+          siteUrl: site.url,
+          hasBuilder: site.hasBuilder,
+          isOffline: site.isOffline,
+          contextValue: "site",
+          children: [],
+          tooltip: "Site is offline. Click to retry.",
+        };
+        this.treeData.set(siteId, siteNode);
+      }
+      this.isLoading = false;
+      this._onDidChange.fire();
+      return;
     }
 
     if (site.hasBuilder === false) {
@@ -221,6 +247,22 @@ export class ScriptRegistry {
           for (const site of sites) {
             if (!site) continue;
             progress.report({ message: `Loading ${site.name}…` });
+
+            if (site.isOffline === true) {
+              const siteNode: ScriptTreeItemData = {
+                type: "site",
+                label: `${site.name}`,
+                siteId: site.id,
+                siteUrl: site.url,
+                hasBuilder: site.hasBuilder,
+                isOffline: site.isOffline,
+                contextValue: "site",
+                children: [],
+                tooltip: "Site is offline. Click to retry.",
+              };
+              this.treeData.set(site.id, siteNode);
+              continue;
+            }
 
             if (site.hasBuilder === false) {
               const siteNode: ScriptTreeItemData = {
