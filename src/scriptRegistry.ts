@@ -170,12 +170,13 @@ export class ScriptRegistry {
         }
 
         let blockFolder = blocksFolder.children?.find(
-          (c) => c.type === "blockFolder" && c.label === blockLabel,
+          (c) => c.type === "blockFolder" && c.blockId === blockId,
         );
         if (!blockFolder) {
           blockFolder = {
             type: "blockFolder",
             label: blockLabel,
+            blockId,
             siteId,
             children: [],
             iconId: "symbol-structure",
@@ -803,6 +804,7 @@ export class ScriptRegistry {
         const blockFolder: ScriptTreeItemData = {
           type: "blockFolder",
           label: blockLabel,
+          blockId: block.blockId,
           siteId,
           children: [],
           iconId: "symbol-structure",
