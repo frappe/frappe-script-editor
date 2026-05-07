@@ -49,7 +49,8 @@ export type TreeItemType =
   | "clientScriptsFolder"
   | "pageBlocksFolder"
   | "blockFolder"
-  | "scriptFile";
+  | "scriptFile"
+  | "searchNode";
 
 export interface ScriptTreeItemData {
   type: TreeItemType;

@@ -346,6 +346,7 @@ export async function activate(
 
   context.subscriptions.push(
     vscode.commands.registerCommand("frappeScriptEditor.goBack", async () => {
+      await vscode.commands.executeCommand("frappeScriptEditor.clearSearch");
       treeProvider.currentSiteId = null;
       await vscode.commands.executeCommand(
         "setContext",
@@ -431,6 +432,41 @@ export async function activate(
         await vscode.commands.executeCommand("list.collapseAll");
       },
     ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "frappeScriptEditor.searchBlocks",
+      async () => {
+        const query = await vscode.window.showInputBox({
+          prompt: "Enter block name to search",
+          placeHolder: "Search query...",
+          value: treeProvider.searchQuery,
+        });
+
+        if (query !== undefined) {
+          treeProvider.searchQuery = query.trim();
+          treeProvider.refresh();
+          vscode.commands.executeCommand(
+            "setContext",
+            "frappeScriptEditor.hasSearchQuery",
+            !!treeProvider.searchQuery,
+          );
+        }
+      },
+    ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("frappeScriptEditor.clearSearch", () => {
+      treeProvider.searchQuery = "";
+      treeProvider.refresh();
+      vscode.commands.executeCommand(
+        "setContext",
+        "frappeScriptEditor.hasSearchQuery",
+        false,
+      );
+    }),
   );
 
   // ── URI Handler ─────────────────────────────────────────────────────────

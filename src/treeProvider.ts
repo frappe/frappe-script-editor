@@ -13,6 +13,7 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
   private registry: ScriptRegistry;
   private tempManager: TempScriptManager | null = null;
   public currentSiteId: string | null = null;
+  public searchQuery: string = "";
 
   constructor(registry: ScriptRegistry) {
     this.registry = registry;
@@ -69,6 +70,13 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
           break;
         case "scriptFile":
           treeItem.iconPath = new vscode.ThemeIcon("file");
+          break;
+        case "searchNode":
+          treeItem.iconPath = new vscode.ThemeIcon("search");
+          treeItem.command = {
+            command: "frappeScriptEditor.searchBlocks",
+            title: "Search Blocks"
+          };
           break;
       }
     }
@@ -145,11 +153,68 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
         const siteNode = this.registry
           .getTreeData()
           .find((s) => s.siteId === this.currentSiteId);
-        return siteNode?.children || [];
+        
+        let children = siteNode?.children || [];
+        
+        if (this.searchQuery) {
+          children = this.filterTreeData(children, this.searchQuery);
+        }
+
+        const searchNode: ScriptTreeItemData = {
+          type: "searchNode",
+          label: this.searchQuery ? `Search: "${this.searchQuery}"` : "Search blocks...",
+          siteId: this.currentSiteId,
+          contextValue: this.searchQuery ? "searchNodeActive" : "searchNodeEmpty",
+        };
+
+        return [searchNode, ...children];
       }
       return this.registry.getTreeData();
     }
 
     return element.children || [];
+  }
+
+  private filterTreeData(
+    nodes: ScriptTreeItemData[],
+    query: string,
+    keepAllChildren = false
+  ): ScriptTreeItemData[] {
+    const lowerQuery = query.toLowerCase();
+    const result: ScriptTreeItemData[] = [];
+
+    for (const node of nodes) {
+      if (keepAllChildren) {
+        const cloned = { ...node };
+        if (cloned.children) {
+          cloned.children = this.filterTreeData(cloned.children, query, true);
+        }
+        result.push(cloned);
+        continue;
+      }
+
+      const matchesQuery = node.label?.toLowerCase().includes(lowerQuery) || false;
+      
+      const isMatchingBlockOrPage = 
+        (node.type === "blockFolder" || node.type === "page" || node.type === "pageBlocksFolder") && matchesQuery;
+
+      const shouldKeepChildren = keepAllChildren || isMatchingBlockOrPage;
+
+      let filteredChildren: ScriptTreeItemData[] | undefined = undefined;
+      if (node.children) {
+        filteredChildren = this.filterTreeData(node.children, query, shouldKeepChildren);
+      }
+
+      const hasMatchingChildren = filteredChildren && filteredChildren.length > 0;
+
+      if (matchesQuery || hasMatchingChildren) {
+        const cloned = { ...node };
+        if (filteredChildren) {
+          cloned.children = filteredChildren;
+        }
+        result.push(cloned);
+      }
+    }
+    return result;
   }
 }

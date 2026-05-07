@@ -84,6 +84,18 @@
         "title": "Frappe Script Editor: Go Back",
         "shortTitle": "Go Back",
         "icon": "$(arrow-left)"
+      },
+      {
+        "command": "frappeScriptEditor.searchBlocks",
+        "title": "Frappe Script Editor: Search Blocks",
+        "shortTitle": "Search",
+        "icon": "$(search)"
+      },
+      {
+        "command": "frappeScriptEditor.clearSearch",
+        "title": "Frappe Script Editor: Clear Search",
+        "shortTitle": "Clear Search",
+        "icon": "$(clear-all)"
       }
     ],
     "menus": {
@@ -118,6 +130,11 @@
         {
           "command": "frappeScriptEditor.reloadSite",
           "when": "view == frappe-script-editor-scripts && viewItem == site",
+          "group": "inline"
+        },
+        {
+          "command": "frappeScriptEditor.clearSearch",
+          "when": "view == frappe-script-editor-scripts && viewItem == searchNodeActive",
           "group": "inline"
         }
       ]
