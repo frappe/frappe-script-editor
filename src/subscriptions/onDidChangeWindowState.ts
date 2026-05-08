@@ -1,10 +1,10 @@
 import * as vscode from "vscode";
+import { SCHEME } from "../scriptRegistry";
 import type { ScriptRegistry } from "../scriptRegistry";
 import type { ScriptTreeProvider } from "../treeProvider";
 import type { TempScriptManager } from "../tempScriptManager";
 
 const TEMP_SCHEME = "frappe-temp";
-const SCHEME = "frappe-script";
 
 export function onDidChangeWindowState(
   registry: ScriptRegistry,
@@ -49,8 +49,12 @@ export function onDidChangeWindowState(
           const updatedContent = registry.getCachedContent(virtualUri);
           if (updatedContent !== undefined && tempScriptManager) {
             tempScriptManager.exportScriptSync(virtualUri, ref, updatedContent);
-            await vscode.commands.executeCommand("workbench.action.files.revert");
-            outputChannel.appendLine(`Reloaded file on focus: ${ref.displayPath}`);
+            await vscode.commands.executeCommand(
+              "workbench.action.files.revert",
+            );
+            outputChannel.appendLine(
+              `Reloaded file on focus: ${ref.displayPath}`,
+            );
           }
         }
       }

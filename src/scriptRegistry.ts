@@ -18,13 +18,14 @@ import type {
 import { sanitizeName, normalizeUrl, extractHostname } from "./utils";
 import {
   BUILDER_DOCTYPES,
-  BUILDER_FIELDS,
+  PAGE_FIELDS,
+  CLIENT_SCRIPT_FIELDS,
+  BLOCK_PROPERTIES,
   BUILDER_SETTINGS_FIELDS,
   PAGE_SCRIPT_FIELDS,
   FOLDER_LABELS,
   TOOLTIPS,
   ERROR_MESSAGES,
-  PROGRESS_TITLES,
 } from "./builderConfig";
 
 export const SCHEME = "frappe-builder";
@@ -55,8 +56,6 @@ export class ScriptRegistry {
 
   private loadingPromise: Promise<void> = Promise.resolve();
 
-  private isLoading = false;
-
   private siteManager: SiteManager;
 
   constructor(siteManager: SiteManager) {
@@ -75,8 +74,8 @@ export class ScriptRegistry {
     const nodes = Array.from(this.treeData.values());
 
     nodes.sort((a, b) => {
-      const idxA = siteIds.indexOf(a.siteId!);
-      const idxB = siteIds.indexOf(b.siteId!);
+      const idxA = a.siteId ? siteIds.indexOf(a.siteId) : -1;
+      const idxB = b.siteId ? siteIds.indexOf(b.siteId) : -1;
       return idxA - idxB;
     });
 
@@ -124,7 +123,16 @@ export class ScriptRegistry {
     let blockPath: string;
 
     if (pathCache && pathCache.has(blockId)) {
-      blockPath = pathCache.get(blockId)!;
+      const cachedPath = pathCache.get(blockId);
+      if (cachedPath) {
+        blockPath = cachedPath;
+      } else {
+        const parentPath = this.findBlockParentPath(blocks, blockId);
+        blockPath = parentPath
+          ? `${parentPath}/${sanitizeName(blockLabel)}-${blockId}`
+          : `${sanitizeName(blockLabel)}-${blockId}`;
+        pathCache.set(blockId, blockPath);
+      }
     } else {
       const parentPath = this.findBlockParentPath(blocks, blockId);
       blockPath = parentPath
@@ -135,11 +143,11 @@ export class ScriptRegistry {
       }
     }
 
-    const isClient = blockField === BUILDER_FIELDS.BLOCK.CLIENT_SCRIPT;
+    const isClient = blockField === BLOCK_PROPERTIES.CLIENT_SCRIPT;
     const ext = isClient ? ".js" : ".py";
     const fileName = isClient
       ? FOLDER_LABELS.CLIENT_SCRIPT
-      : FOLDER_LABELS.DATA_SCRIPT_PY;
+      : FOLDER_LABELS.DATA_SCRIPT;
     const displayPath = `${pageTitleSlug}/${FOLDER_LABELS.PAGE_BLOCKS}/${blockPath}/${fileName}`;
     const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
@@ -179,7 +187,9 @@ export class ScriptRegistry {
             children: [],
             iconId: "folder",
           };
-          pageNode.children!.push(blocksFolder);
+          if (pageNode.children) {
+            pageNode.children.push(blocksFolder);
+          }
         }
 
         let blockFolder = blocksFolder.children?.find(
@@ -194,16 +204,21 @@ export class ScriptRegistry {
             children: [],
             iconId: "symbol-structure",
           };
-          blocksFolder.children!.push(blockFolder);
+          if (blocksFolder.children) {
+            blocksFolder.children.push(blockFolder);
+          }
         }
 
-        blockFolder.children!.push({
-          type: "scriptFile",
-          label: fileName,
-          siteId,
-          uri,
-          iconId: isClient ? "symbol-event" : "symbol-method",
-        });
+        if (blockFolder.children) {
+          blockFolder.children.push({
+            type: "scriptFile",
+            label: fileName,
+            siteId,
+            uri,
+            children: [],
+            iconId: isClient ? "symbol-event" : "symbol-method",
+          });
+        }
 
         break;
       }
@@ -221,7 +236,7 @@ export class ScriptRegistry {
     siteId: string,
     doctype: string,
     docname: string,
-    fieldName: string,
+    fieldName: keyof typeof PAGE_SCRIPT_FIELDS,
     pageTitleSlug: string,
     content: string,
   ): { uri: vscode.Uri; ref: ScriptReference } {
@@ -257,13 +272,16 @@ export class ScriptRegistry {
         if (pageNode.type !== "page") continue;
         if (pageNode.tooltip !== `${TOOLTIPS.ROUTE_PREFIX}${docname}`) continue;
 
-        pageNode.children!.push({
-          type: "scriptFile",
-          label: `${config.label}${config.ext}`,
-          siteId,
-          uri,
-          iconId: config.iconId,
-        });
+        if (pageNode.children) {
+          pageNode.children.push({
+            type: "scriptFile",
+            label: `${config.label}${config.ext}`,
+            siteId,
+            uri,
+            children: [],
+            iconId: config.iconId,
+          });
+        }
 
         break;
       }
@@ -317,8 +335,6 @@ export class ScriptRegistry {
   async reloadSite(siteId: string): Promise<void> {
     const site = this.siteManager.getSite(siteId);
     if (!site) return;
-
-    this.isLoading = true;
     this.clearSiteRegistryData(siteId);
 
     const existingNode = this.treeData.get(siteId);
@@ -351,7 +367,6 @@ export class ScriptRegistry {
         };
         this.treeData.set(siteId, siteNode);
       }
-      this.isLoading = false;
       this._onDidChange.fire();
       return;
     }
@@ -370,7 +385,6 @@ export class ScriptRegistry {
         };
         this.treeData.set(siteId, siteNode);
       }
-      this.isLoading = false;
       this._onDidChange.fire();
       return;
     }
@@ -385,8 +399,6 @@ export class ScriptRegistry {
         vscode.window.showWarningMessage(
           ERROR_MESSAGES.LOADING_SCRIPTS(site.name, msg),
         );
-      } finally {
-        this.isLoading = false;
       }
     })();
 
@@ -404,13 +416,13 @@ export class ScriptRegistry {
       vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: PROGRESS_TITLES.LOADING_SITES,
+          title: "Frappe Script Editor: Loading sites…",
           cancellable: false,
         },
         async (progress) => {
           for (const site of sites) {
             progress.report({
-              message: PROGRESS_TITLES.LOADING_SITE(site.name),
+              message: `Loading ${site.name}…`,
             });
 
             const existingNode = this.treeData.get(site.id);
@@ -447,8 +459,6 @@ export class ScriptRegistry {
   }
 
   async loadAll(siteId?: string): Promise<void> {
-    this.isLoading = true;
-
     if (!siteId) {
       this.registry.clear();
       this.docRefIndex.clear();
@@ -467,7 +477,7 @@ export class ScriptRegistry {
       vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: PROGRESS_TITLES.LOADING_SCRIPTS,
+          title: "Frappe Script Editor: Loading scripts…",
           cancellable: false,
         },
         async (progress) => {
@@ -519,8 +529,6 @@ export class ScriptRegistry {
     );
 
     await this.loadingPromise;
-
-    this.isLoading = false;
     this._onDidChange.fire();
   }
 
@@ -578,16 +586,21 @@ export class ScriptRegistry {
         const value = settings[builderField.field] as string | null;
         this.contentCache.set(uri.toString(), value || "");
 
-        settingsNode.children!.push({
-          type: "scriptFile",
-          label: `${builderField.displayName}${builderField.ext}`,
-          siteId,
-          uri,
-          iconId: this.getIconForExtension(builderField.ext),
-        });
+        if (settingsNode.children) {
+          settingsNode.children.push({
+            type: "scriptFile",
+            label: `${builderField.displayName}${builderField.ext}`,
+            siteId,
+            uri,
+            children: [],
+            iconId: this.getIconForExtension(builderField.ext),
+          });
+        }
       }
 
-      siteNode.children!.push(settingsNode);
+      if (siteNode.children) {
+        siteNode.children.push(settingsNode);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       vscode.window.showWarningMessage(
@@ -603,7 +616,9 @@ export class ScriptRegistry {
         try {
           const pageDoc = await client.getPageDoc(pageSummary.name);
           const pageNode = await this.buildPageNode(siteId, pageDoc, client);
-          siteNode.children!.push(pageNode);
+          if (siteNode.children) {
+            siteNode.children.push(pageNode);
+          }
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           vscode.window.showWarningMessage(
@@ -665,7 +680,7 @@ export class ScriptRegistry {
               type: "docField",
               doctype: BUILDER_DOCTYPES.CLIENT_SCRIPT,
               docname: csDoc.name,
-              fieldName: BUILDER_FIELDS.CLIENT_SCRIPT.SCRIPT,
+              fieldName: CLIENT_SCRIPT_FIELDS.SCRIPT,
             },
             scriptType: "clientScript",
             fileExtension: ext,
@@ -679,13 +694,16 @@ export class ScriptRegistry {
           );
           this.contentCache.set(uri.toString(), csDoc.script || "");
 
-          clientScriptsFolder.children!.push({
-            type: "scriptFile",
-            label: `${csDoc.name}${ext}`,
-            siteId,
-            uri,
-            iconId: this.getIconForExtension(ext),
-          });
+          if (clientScriptsFolder.children) {
+            clientScriptsFolder.children.push({
+              type: "scriptFile",
+              label: `${csDoc.name}${ext}`,
+              siteId,
+              uri,
+              children: [],
+              iconId: this.getIconForExtension(ext),
+            });
+          }
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           vscode.window.showWarningMessage(
@@ -694,7 +712,9 @@ export class ScriptRegistry {
         }
       }
 
-      pageNode.children!.push(clientScriptsFolder);
+      if (pageNode.children) {
+        pageNode.children.push(clientScriptsFolder);
+      }
     }
 
     // ── Data script (single file) ───────────────────────────────────────
@@ -708,7 +728,7 @@ export class ScriptRegistry {
         type: "docField",
         doctype: BUILDER_DOCTYPES.PAGE,
         docname: doc.name,
-        fieldName: BUILDER_FIELDS.PAGE.PAGE_DATA_SCRIPT,
+        fieldName: PAGE_FIELDS.PAGE_DATA_SCRIPT,
       },
       scriptType: "pageDataScript",
       fileExtension: ".py",
@@ -719,13 +739,16 @@ export class ScriptRegistry {
     this.docRefIndex.set(makeDocRefKey(siteId, ref.location), uri.toString());
     this.contentCache.set(uri.toString(), doc.page_data_script || "");
 
-    pageNode.children!.push({
-      type: "scriptFile",
-      label: FOLDER_LABELS.DATA_SCRIPT,
-      siteId,
-      uri,
-      iconId: "symbol-method",
-    });
+    if (pageNode.children) {
+      pageNode.children.push({
+        type: "scriptFile",
+        label: FOLDER_LABELS.DATA_SCRIPT,
+        siteId,
+        uri,
+        children: [],
+        iconId: "symbol-method",
+      });
+    }
 
     // ── Page blocks (with scripts) ──────────────────────────────────────
     const blocksJson = doc.draft_blocks || doc.blocks;
@@ -747,7 +770,9 @@ export class ScriptRegistry {
             children: blockScriptNodes,
             iconId: "folder",
           };
-          pageNode.children!.push(pageBlocksFolder);
+          if (pageNode.children) {
+            pageNode.children.push(pageBlocksFolder);
+          }
         }
       } catch {
         // blocks JSON is invalid, skip
@@ -756,13 +781,13 @@ export class ScriptRegistry {
 
     // ── Head code & Body code ───────────────────────────────────────────
     for (const field of [
-      BUILDER_FIELDS.PAGE.HEAD_HTML,
-      BUILDER_FIELDS.PAGE.BODY_HTML,
+      PAGE_FIELDS.HEAD_HTML,
+      PAGE_FIELDS.BODY_HTML,
     ] as const) {
       const value = doc[field] as string | null;
 
       const displayName =
-        field === BUILDER_FIELDS.PAGE.HEAD_HTML
+        field === PAGE_FIELDS.HEAD_HTML
           ? PAGE_SCRIPT_FIELDS[field].label
           : PAGE_SCRIPT_FIELDS[field].label;
       const displayPath = `${pageTitleSlug}/${displayName}.html`;
@@ -785,13 +810,16 @@ export class ScriptRegistry {
       this.docRefIndex.set(makeDocRefKey(siteId, ref.location), uri.toString());
       this.contentCache.set(uri.toString(), value || "");
 
-      pageNode.children!.push({
-        type: "scriptFile",
-        label: `${displayName}.html`,
-        siteId,
-        uri,
-        iconId: "code",
-      });
+      if (pageNode.children) {
+        pageNode.children.push({
+          type: "scriptFile",
+          label: `${displayName}.html`,
+          siteId,
+          uri,
+          children: [],
+          iconId: "code",
+        });
+      }
     }
 
     return pageNode;
@@ -824,9 +852,7 @@ export class ScriptRegistry {
           ? `${parentPath}/${sanitizeName(blockLabel)}-${block.blockId}`
           : `${sanitizeName(blockLabel)}-${block.blockId}`;
 
-        if (block.blockId) {
-          pathCache.set(block.blockId, blockPath);
-        }
+        pathCache.set(block.blockId, blockPath);
 
         const blockFolder: ScriptTreeItemData = {
           type: "blockFolder",
@@ -837,7 +863,7 @@ export class ScriptRegistry {
           iconId: "symbol-structure",
         };
 
-        if (hasClientScript && block.blockId) {
+        if (hasClientScript) {
           const displayPath = `${pageName}/${FOLDER_LABELS.PAGE_BLOCKS}/${blockPath}/${FOLDER_LABELS.CLIENT_SCRIPT}`;
           const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
@@ -848,7 +874,7 @@ export class ScriptRegistry {
               doctype: BUILDER_DOCTYPES.PAGE,
               docname,
               blockId: block.blockId,
-              blockField: BUILDER_FIELDS.BLOCK.CLIENT_SCRIPT,
+              blockField: BLOCK_PROPERTIES.CLIENT_SCRIPT,
             },
             scriptType: "blockClientScript",
             fileExtension: ".js",
@@ -862,17 +888,20 @@ export class ScriptRegistry {
           );
           this.contentCache.set(uri.toString(), block.blockClientScript || "");
 
-          blockFolder.children!.push({
-            type: "scriptFile",
-            label: FOLDER_LABELS.CLIENT_SCRIPT,
-            siteId,
-            uri,
-            iconId: "symbol-event",
-          });
+          if (blockFolder.children) {
+            blockFolder.children.push({
+              type: "scriptFile",
+              label: FOLDER_LABELS.CLIENT_SCRIPT,
+              siteId,
+              uri,
+              children: [],
+              iconId: "symbol-event",
+            });
+          }
         }
 
-        if (hasDataScript && block.blockId) {
-          const displayPath = `${pageName}/${FOLDER_LABELS.PAGE_BLOCKS}/${blockPath}/${FOLDER_LABELS.DATA_SCRIPT_PY}`;
+        if (hasDataScript) {
+          const displayPath = `${pageName}/${FOLDER_LABELS.PAGE_BLOCKS}/${blockPath}/${FOLDER_LABELS.DATA_SCRIPT}`;
           const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 
           const ref: ScriptReference = {
@@ -882,7 +911,7 @@ export class ScriptRegistry {
               doctype: BUILDER_DOCTYPES.PAGE,
               docname,
               blockId: block.blockId,
-              blockField: BUILDER_FIELDS.BLOCK.DATA_SCRIPT,
+              blockField: BLOCK_PROPERTIES.DATA_SCRIPT,
             },
             scriptType: "blockDataScript",
             fileExtension: ".py",
@@ -896,13 +925,16 @@ export class ScriptRegistry {
           );
           this.contentCache.set(uri.toString(), block.blockDataScript || "");
 
-          blockFolder.children!.push({
-            type: "scriptFile",
-            label: FOLDER_LABELS.DATA_SCRIPT_PY,
-            siteId,
-            uri,
-            iconId: "symbol-method",
-          });
+          if (blockFolder.children) {
+            blockFolder.children.push({
+              type: "scriptFile",
+              label: FOLDER_LABELS.DATA_SCRIPT,
+              siteId,
+              uri,
+              children: [],
+              iconId: "symbol-method",
+            });
+          }
         }
 
         nodes.push(blockFolder);

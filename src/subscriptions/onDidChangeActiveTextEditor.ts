@@ -1,9 +1,9 @@
 import * as vscode from "vscode";
+import { SCHEME } from "../scriptRegistry";
 import type { ScriptTreeProvider } from "../treeProvider";
 import type { TempScriptManager } from "../tempScriptManager";
 
 const TEMP_SCHEME = "frappe-temp";
-const SCHEME = "frappe-script";
 
 export function onDidChangeActiveTextEditor(
   treeProvider: ScriptTreeProvider,

@@ -5,7 +5,7 @@
 
 import * as vscode from "vscode";
 import { FrappeClient } from "./frappeClient";
-import type { FrappeSiteConfig, StoredSiteConfig } from "./types";
+import type { FrappeSiteConfig } from "./types";
 import { generateId, normalizeUrl, extractHostname } from "./utils";
 
 const SITES_STORAGE_KEY = "frappeScriptEditor.sites";
@@ -143,7 +143,7 @@ export class SiteManager {
 
   private loadSites(): void {
     const stored =
-      this.globalState.get<StoredSiteConfig[]>(SITES_STORAGE_KEY) || [];
+      this.globalState.get<FrappeSiteConfig[]>(SITES_STORAGE_KEY) || [];
     this.sites = stored.map((s) => ({
       ...s,
       hasBuilder: s.hasBuilder ?? null,
@@ -152,7 +152,7 @@ export class SiteManager {
   }
 
   private async persistSites(): Promise<void> {
-    const toStore: StoredSiteConfig[] = this.sites.map((s) => ({
+    const toStore: FrappeSiteConfig[] = this.sites.map((s) => ({
       id: s.id,
       name: s.name,
       url: s.url,

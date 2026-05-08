@@ -50,11 +50,11 @@ export class TempScriptManager {
     let blockName = "root";
     let scriptFile = pathParts[pathParts.length - 1];
 
-    // Extract block name from path - prioritize "page blocks" folder or use parent folder
+    // Extract block name from path - prioritize block name over parent folder
     const pageBlocksIndex = pathParts.indexOf("page blocks");
     if (pageBlocksIndex !== -1 && pageBlocksIndex < pathParts.length - 1) {
       blockName = pathParts[pageBlocksIndex + 1];
-    } else if (pathParts.length >= 3 && pathParts[1] !== "page blocks") {
+    } else if (pathParts.length >= 3) {
       blockName = pathParts[pathParts.length - 2];
     }
 

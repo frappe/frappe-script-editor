@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { SCHEME } from "../scriptRegistry";
 import type { ScriptRegistry } from "../scriptRegistry";
 import type { TempScriptManager } from "../tempScriptManager";
 
@@ -8,7 +9,7 @@ export function onDidOpenTextDocument(
   outputChannel: vscode.OutputChannel,
 ): vscode.Disposable {
   return vscode.workspace.onDidOpenTextDocument(async (doc) => {
-    if (doc.uri.scheme !== "frappe-script") return;
+    if (doc.uri.scheme !== SCHEME) return;
     if (!tempScriptManager) return;
 
     const ref = registry.getReference(doc.uri);

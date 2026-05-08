@@ -2,7 +2,11 @@ import * as vscode from "vscode";
 import type { ScriptRegistry } from "../scriptRegistry";
 import type { TempScriptManager } from "../tempScriptManager";
 import type { SiteManager } from "../siteManager";
-import { BUILDER_DOCTYPES, ERROR_MESSAGES } from "../builderConfig";
+import {
+  BUILDER_DOCTYPES,
+  ERROR_MESSAGES,
+  PAGE_SCRIPT_FIELDS,
+} from "../builderConfig";
 import { findBlockById } from "../scriptFileSystem";
 import type { BlockFieldScript, BlockNode } from "../types";
 import { sanitizeName } from "../utils";
@@ -59,13 +63,18 @@ export function registerUriHandler(
     const client = await siteManager.getClient(site.id);
 
     if (doctype === BUILDER_DOCTYPES.PAGE && docname && blockId && blockField) {
-      const { json, field: blocksField } = await client.getPageBlocksRaw(docname);
+      const { json, field: blocksField } =
+        await client.getPageBlocksRaw(docname);
       const blocks: BlockNode[] = JSON.parse(json);
       const block = findBlockById(blocks, blockId);
       if (!block) {
         throw new Error(ERROR_MESSAGES.BLOCK_NOT_FOUND(blockId, docname));
       }
-      await client.updatePageBlocks(docname, blocksField, JSON.stringify(blocks));
+      await client.updatePageBlocks(
+        docname,
+        blocksField,
+        JSON.stringify(blocks),
+      );
 
       const pageDoc = await client.getPageDoc(docname);
       const pageLabel = pageDoc.page_title || pageDoc.page_name || pageDoc.name;
@@ -81,6 +90,9 @@ export function registerUriHandler(
         blocks,
       );
     } else if (doctype === BUILDER_DOCTYPES.PAGE && docname && field) {
+      if (!(field in PAGE_SCRIPT_FIELDS)) {
+        throw new Error(ERROR_MESSAGES.UNKNOWN_FIELD(field));
+      }
       const pageDoc = await client.getPageDoc(docname);
       if (!pageDoc) {
         throw new Error(ERROR_MESSAGES.PAGE_NOT_FOUND(docname));
@@ -94,7 +106,7 @@ export function registerUriHandler(
         site.id,
         doctype,
         docname,
-        field,
+        field as keyof typeof PAGE_SCRIPT_FIELDS,
         pageTitleSlug,
         "",
       );

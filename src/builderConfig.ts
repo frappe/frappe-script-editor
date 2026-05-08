@@ -1,95 +1,83 @@
-import type { ScriptType } from "./types";
-
 export const BUILDER_DOCTYPES = {
   SETTINGS: "Builder Settings",
   CLIENT_SCRIPT: "Builder Client Script",
   PAGE: "Builder Page",
 } as const;
 
-export const BLOCK_FIELDS = {
+export const SETTINGS_FIELDS = {
+  SCRIPT: "script",
+  STYLE: "style",
+  HEAD_HTML: "head_html",
+  BODY_HTML: "body_html",
+} as const;
+
+export const PAGE_FIELDS = {
+  PAGE_DATA_SCRIPT: "page_data_script",
+  HEAD_HTML: "head_html",
+  BODY_HTML: "body_html",
+  CLIENT_SCRIPTS: "client_scripts",
+  DRAFT_BLOCKS: "draft_blocks",
+  BLOCKS: "blocks",
+} as const;
+
+export const CLIENT_SCRIPT_FIELDS = {
+  SCRIPT: "script",
+} as const;
+
+export const BLOCK_PROPERTIES = {
   CLIENT_SCRIPT: "blockClientScript",
   DATA_SCRIPT: "blockDataScript",
 } as const;
 
-export const BUILDER_FIELDS = {
-  SETTINGS: {
-    SCRIPT: "script",
-    STYLE: "style",
-    HEAD_HTML: "head_html",
-    BODY_HTML: "body_html",
-  },
-  PAGE: {
-    PAGE_DATA_SCRIPT: "page_data_script",
-    HEAD_HTML: "head_html",
-    BODY_HTML: "body_html",
-    CLIENT_SCRIPTS: "client_scripts",
-    DRAFT_BLOCKS: "draft_blocks",
-    BLOCKS: "blocks",
-  },
-  BLOCK: {
-    CLIENT_SCRIPT: "blockClientScript",
-    DATA_SCRIPT: "blockDataScript",
-  },
-  CLIENT_SCRIPT: {
-    SCRIPT: "script",
-  },
-} as const;
-
 export const BUILDER_SETTINGS_FIELDS = [
   {
-    field: BUILDER_FIELDS.SETTINGS.SCRIPT,
-    displayName: "client script",
+    field: SETTINGS_FIELDS.SCRIPT,
+    displayName: "client-script",
     ext: ".js",
   },
   {
-    field: BUILDER_FIELDS.SETTINGS.STYLE,
+    field: SETTINGS_FIELDS.STYLE,
     displayName: "style",
     ext: ".css",
   },
   {
-    field: BUILDER_FIELDS.SETTINGS.HEAD_HTML,
-    displayName: "Head code",
+    field: SETTINGS_FIELDS.HEAD_HTML,
+    displayName: "head-code",
     ext: ".html",
   },
   {
-    field: BUILDER_FIELDS.SETTINGS.BODY_HTML,
-    displayName: "Body code",
+    field: SETTINGS_FIELDS.BODY_HTML,
+    displayName: "body-code",
     ext: ".html",
   },
 ] as const;
 
-export const PAGE_SCRIPT_FIELDS: Record<
-  string,
-  { label: string; ext: string; scriptType: ScriptType; iconId: string }
-> = {
-  [BUILDER_FIELDS.PAGE.PAGE_DATA_SCRIPT]: {
-    label: "data script",
+export const PAGE_SCRIPT_FIELDS = {
+  [PAGE_FIELDS.PAGE_DATA_SCRIPT]: {
+    label: "data-script",
     ext: ".py",
     scriptType: "pageDataScript",
     iconId: "symbol-method",
   },
-  [BUILDER_FIELDS.PAGE.HEAD_HTML]: {
-    label: "Head code",
+  [PAGE_FIELDS.HEAD_HTML]: {
+    label: "head-code",
     ext: ".html",
     scriptType: "clientScript",
     iconId: "code",
   },
-  [BUILDER_FIELDS.PAGE.BODY_HTML]: {
-    label: "Body code",
+  [PAGE_FIELDS.BODY_HTML]: {
+    label: "body-code",
     ext: ".html",
     scriptType: "clientScript",
     iconId: "code",
   },
-};
+} as const;
 
 export const FOLDER_LABELS = {
-  CLIENT_SCRIPTS: "client scripts",
-  DATA_SCRIPT: "data script.py",
-  PAGE_BLOCKS: "page blocks",
-  CLIENT_SCRIPT: "client script.js",
-  DATA_SCRIPT_PY: "data script.py",
-  HEAD_CODE: "Head code.html",
-  BODY_CODE: "Body code.html",
+  CLIENT_SCRIPTS: "Client Scripts",
+  PAGE_BLOCKS: "Page Blocks",
+  DATA_SCRIPT: "data-script.py",
+  CLIENT_SCRIPT: "client-script.js",
 } as const;
 
 export const TOOLTIPS = {
@@ -115,10 +103,4 @@ export const ERROR_MESSAGES = {
   UNKNOWN_FIELD: (fieldName: string) =>
     `Unknown field "${fieldName}" for on-demand registration`,
   PAGE_NOT_FOUND: (docname: string) => `Builder Page "${docname}" not found`,
-} as const;
-
-export const PROGRESS_TITLES = {
-  LOADING_SITES: "Frappe Script Editor: Loading sites…",
-  LOADING_SCRIPTS: "Frappe Script Editor: Loading scripts…",
-  LOADING_SITE: (siteName: string) => `Loading ${siteName}…`,
-} as const;
+};

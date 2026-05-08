@@ -1,7 +1,15 @@
 import * as vscode from "vscode";
-import { BUILDER_DOCTYPES } from "./builderConfig";
+import {
+  BUILDER_DOCTYPES,
+  PAGE_FIELDS,
+  SETTINGS_FIELDS,
+  CLIENT_SCRIPT_FIELDS,
+  BLOCK_PROPERTIES,
+} from "./builderConfig";
 
-export type BlockFieldScript = "blockClientScript" | "blockDataScript";
+export type BlockFieldScript =
+  | typeof BLOCK_PROPERTIES.CLIENT_SCRIPT
+  | typeof BLOCK_PROPERTIES.DATA_SCRIPT;
 
 export interface FrappeSiteConfig {
   id: string;
@@ -13,15 +21,6 @@ export interface FrappeSiteConfig {
   isOffline: boolean | null;
 }
 
-export interface StoredSiteConfig {
-  id: string;
-  name: string;
-  url: string;
-  apiKey: string;
-  hasBuilder: boolean | null;
-  isOffline: boolean | null;
-}
-
 export type ScriptType =
   | "clientScript"
   | "pageDataScript"
@@ -29,7 +28,15 @@ export type ScriptType =
   | "blockDataScript";
 
 export type ScriptLocation =
-  | { type: "docField"; doctype: string; docname: string; fieldName: string }
+  | {
+      type: "docField";
+      doctype: string;
+      docname: string;
+      fieldName:
+        | (typeof SETTINGS_FIELDS)[keyof typeof SETTINGS_FIELDS]
+        | (typeof PAGE_FIELDS)[keyof typeof PAGE_FIELDS]
+        | typeof CLIENT_SCRIPT_FIELDS.SCRIPT;
+    }
   | {
       type: "blockScript";
       doctype: typeof BUILDER_DOCTYPES.PAGE;
@@ -67,7 +74,7 @@ export interface ScriptTreeItemData {
 
   uri?: vscode.Uri;
 
-  children?: ScriptTreeItemData[];
+  children: ScriptTreeItemData[];
 
   contextValue?: string;
   tooltip?: string;
@@ -84,40 +91,50 @@ export interface FrappePageSummary {
   page_title: string | null;
 }
 
-export interface FrappePageDoc {
+export type PageBlocksField =
+  | typeof PAGE_FIELDS.DRAFT_BLOCKS
+  | typeof PAGE_FIELDS.BLOCKS;
+
+type PageDocFieldTypes = Record<
+  typeof PAGE_FIELDS.PAGE_DATA_SCRIPT,
+  string | null
+> &
+  Record<typeof PAGE_FIELDS.HEAD_HTML, string | null> &
+  Record<typeof PAGE_FIELDS.BODY_HTML, string | null> &
+  Record<typeof PAGE_FIELDS.BLOCKS, string | null> &
+  Record<typeof PAGE_FIELDS.DRAFT_BLOCKS, string | null> &
+  Record<
+    typeof PAGE_FIELDS.CLIENT_SCRIPTS,
+    Array<{ builder_script: string; name: string }>
+  >;
+
+export type FrappePageDoc = {
   name: string;
   page_name: string;
   page_title: string | null;
-  page_data_script: string | null;
-  head_html: string | null;
-  body_html: string | null;
-  blocks: string | null;
-  draft_blocks: string | null;
-  client_scripts: Array<{ builder_script: string; name: string }>;
-  [key: string]: unknown;
-}
+} & PageDocFieldTypes;
 
-export interface FrappeClientScriptDoc {
+export type FrappeClientScriptDoc = {
   name: string;
-  script: string;
   script_type: "JavaScript" | "CSS";
-}
+} & Record<typeof CLIENT_SCRIPT_FIELDS.SCRIPT, string>;
 
-export interface FrappeBuilderSettingsDoc {
-  head_html: string | null;
-  body_html: string | null;
-  script: string | null;
-  style: string | null;
-  [key: string]: unknown;
-}
+type SettingsDocFieldTypes = Record<
+  typeof SETTINGS_FIELDS.HEAD_HTML,
+  string | null
+> &
+  Record<typeof SETTINGS_FIELDS.BODY_HTML, string | null> &
+  Record<typeof SETTINGS_FIELDS.SCRIPT, string | null> &
+  Record<typeof SETTINGS_FIELDS.STYLE, string | null>;
+
+export type FrappeBuilderSettingsDoc = SettingsDocFieldTypes;
 
 export interface BlockNode {
-  blockId?: string;
+  blockId: string;
   blockName?: string;
   blockClientScript?: string;
   blockDataScript?: string;
   children?: BlockNode[];
-  [key: string]: unknown;
 }
 
 export interface OpenScriptRequest {

@@ -218,6 +218,7 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
             ? `Search: "${this.searchQuery}"`
             : "Search blocks...",
           siteId: this.currentSiteId,
+          children: [],
           contextValue: this.searchQuery
             ? "searchNodeActive"
             : "searchNodeEmpty",
@@ -274,8 +275,8 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
 
       if (matchesQuery || hasMatchingChildren) {
         if (
-          node.type == "pageBlocksFolder" ||
-          node.type == "clientScriptsFolder"
+          node.type === "pageBlocksFolder" ||
+          node.type === "clientScriptsFolder"
         ) {
           node.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
         }

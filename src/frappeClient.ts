@@ -3,11 +3,13 @@
  *
  */
 
+import { PAGE_FIELDS } from "./builderConfig";
 import type {
   FrappeBuilderSettingsDoc,
   FrappeClientScriptDoc,
   FrappePageDoc,
   FrappePageSummary,
+  PageBlocksField,
 } from "./types";
 
 export class FrappeClient {
@@ -140,17 +142,20 @@ export class FrappeClient {
 
   async getPageBlocksRaw(
     name: string,
-  ): Promise<{ json: string; field: "draft_blocks" | "blocks" }> {
+  ): Promise<{ json: string; field: PageBlocksField }> {
     const doc = await this.getPageDoc(name);
     if (doc.draft_blocks) {
-      return { json: doc.draft_blocks, field: "draft_blocks" };
+      return {
+        json: doc.draft_blocks || "[]",
+        field: PAGE_FIELDS.DRAFT_BLOCKS,
+      };
     }
-    return { json: doc.blocks || "[]", field: "blocks" };
+    return { json: doc.blocks || "[]", field: PAGE_FIELDS.BLOCKS };
   }
 
   async updatePageBlocks(
     name: string,
-    field: "draft_blocks" | "blocks",
+    field: PageBlocksField,
     blocksJson: string,
   ): Promise<void> {
     await this.request(

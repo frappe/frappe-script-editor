@@ -8,6 +8,7 @@ export function registerReloadSite(context: CommandContext): vscode.Disposable {
     `${COMMAND_PREFIX}reloadSite`,
     async (item: TreeItemSiteId) => {
       if (item?.siteId) {
+        const siteId = item.siteId;
         await vscode.window.withProgress(
           {
             location: vscode.ProgressLocation.Notification,
@@ -15,9 +16,9 @@ export function registerReloadSite(context: CommandContext): vscode.Disposable {
           },
           async (progress) => {
             progress.report({ message: "Reloading site status…" });
-            await context.siteManager.reloadSiteStatus(item.siteId!);
+            await context.siteManager.reloadSiteStatus(siteId);
             progress.report({ message: "Loading scripts…" });
-            await context.registry.reloadSite(item.siteId!);
+            await context.registry.reloadSite(siteId);
             progress.report({ message: "Site status reloaded." });
           },
         );
