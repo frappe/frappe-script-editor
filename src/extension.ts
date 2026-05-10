@@ -14,7 +14,7 @@ import { onDidChangeActiveTextEditor } from "./subscriptions/onDidChangeActiveTe
 import { setupContextKeys } from "./subscriptions/setupContextKeys";
 import { registerUriHandler } from "./subscriptions/registerUriHandler";
 import { startHttpServer } from "./subscriptions/startHttpServer";
-import { onDidChangeWindowState } from "./subscriptions/onDidChangeWindowState";
+import { SocketManager } from "./socketManager";
 
 export async function activate(
   context: vscode.ExtensionContext,
@@ -36,6 +36,19 @@ export async function activate(
   const tempScriptManager = new TempScriptManager();
   tempScriptManager.cleanup();
   tempScriptManager.ensureTempDir();
+
+  // ── Socket.IO manager ───────────────────────────────────────────────
+
+  const socketManager = new SocketManager(
+    siteManager,
+    registry,
+    tempScriptManager,
+    fileSystem,
+    outputChannel,
+  );
+  context.subscriptions.push(
+    new vscode.Disposable(() => socketManager.disconnectAll()),
+  );
 
   // ── FileSystem providers ─────────────────────────────────────────────────
 
@@ -98,6 +111,7 @@ export async function activate(
     treeProvider,
     ctx: context,
     updateViewTitle,
+    socketManager,
   };
 
   context.subscriptions.push(...registerAllCommands(commandContext));
@@ -129,16 +143,5 @@ export async function activate(
 
   outputChannel.appendLine(
     `Initialized with ${sites.length} configured site(s).`,
-  );
-
-  // ── Window state listener ────────────────────────────────────────────────
-
-  context.subscriptions.push(
-    onDidChangeWindowState(
-      registry,
-      tempScriptManager,
-      treeProvider,
-      outputChannel,
-    ),
   );
 }

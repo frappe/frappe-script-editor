@@ -120,6 +120,7 @@ export function registerAddSite(context: CommandContext): vscode.Disposable {
               );
             }
             await context.registry.loadAll();
+            context.socketManager.connect(site.id);
           },
         );
       } catch (err: unknown) {

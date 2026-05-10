@@ -12,6 +12,7 @@ export function registerRefreshScripts(
       const currentSiteId = context.treeProvider.currentSiteId;
       if (currentSiteId) {
         await context.registry.loadAll(currentSiteId);
+        context.socketManager.reconnect(currentSiteId);
       } else {
         await context.registry.loadSites();
       }

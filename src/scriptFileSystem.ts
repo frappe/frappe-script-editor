@@ -35,6 +35,14 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
     this.outputChannel = outputChannel;
   }
 
+  fireChangedEvent(uris: vscode.Uri[]): void {
+    const changes = uris.map(uri => ({
+      type: vscode.FileChangeType.Changed,
+      uri
+    }));
+    this._onDidChangeFile.fire(changes);
+  }
+
   watch(): vscode.Disposable {
     return new vscode.Disposable(() => {});
   }

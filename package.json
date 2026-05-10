@@ -156,6 +156,7 @@
     "typescript": "^5.4.0"
   },
   "dependencies": {
-    "portfinder": "^1.0.38"
+    "portfinder": "^1.0.38",
+    "socket.io-client": "^4.8.3"
   }
 }

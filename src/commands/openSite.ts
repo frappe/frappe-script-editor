@@ -20,6 +20,7 @@ export function registerOpenSite(context: CommandContext): vscode.Disposable {
         );
         context.updateViewTitle();
         await context.registry.loadAll(item.siteId);
+        context.socketManager.connect(item.siteId);
         context.treeProvider.refresh();
       }
     },

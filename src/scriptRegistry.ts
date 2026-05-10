@@ -98,6 +98,34 @@ export class ScriptRegistry {
     this.contentCache.set(uriString, content);
   }
 
+  getSiteReferences(siteId: string): Map<string, ScriptReference> {
+    const siteRefs = new Map<string, ScriptReference>();
+    for (const [uri, ref] of this.registry.entries()) {
+      if (ref.siteId === siteId) {
+        siteRefs.set(uri, ref);
+      }
+    }
+    return siteRefs;
+  }
+
+  getUrisByDocname(
+    siteId: string,
+    doctype: string,
+    docname: string,
+  ): Map<string, ScriptReference> {
+    const matchedRefs = new Map<string, ScriptReference>();
+    for (const [uri, ref] of this.registry.entries()) {
+      if (
+        ref.siteId === siteId &&
+        ref.location.doctype === doctype &&
+        ref.location.docname === docname
+      ) {
+        matchedRefs.set(uri, ref);
+      }
+    }
+    return matchedRefs;
+  }
+
   /**
    * Register a single block script entry on-demand (called when opening a
    * script that didn't previously exist). Adds it to both the registry

@@ -18,6 +18,7 @@ export function registerRemoveSite(context: CommandContext): vscode.Disposable {
           if (confirm === "Remove") {
             const removedSiteId = item.siteId;
             const wasCurrentSite = context.treeProvider.currentSiteId === removedSiteId;
+            context.socketManager.disconnect(removedSiteId);
             await context.siteManager.removeSite(removedSiteId);
             context.registry.removeSiteTreeData(removedSiteId);
             if (wasCurrentSite) {
