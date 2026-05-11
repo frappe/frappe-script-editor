@@ -29,10 +29,7 @@ export function registerUriHandler(
         result.ref,
         cached,
       );
-      const tempDir = tempScriptManager.getTempDir();
-      const cleanPath = tempPath.replace(tempDir, "");
-      const cleanUri = vscode.Uri.parse(`frappe-temp://${cleanPath}`);
-      const doc = await vscode.workspace.openTextDocument(cleanUri);
+      const doc = await vscode.workspace.openTextDocument(tempPath);
       await vscode.window.showTextDocument(doc, { preview: false });
       outputChannel.appendLine(`Exported to temp (URI handler): ${tempPath}`);
     } else {

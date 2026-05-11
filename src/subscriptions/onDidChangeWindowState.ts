@@ -21,10 +21,20 @@ export function onDidChangeWindowState(
     const activeEditor = vscode.window.activeTextEditor;
     const activeDoc = activeEditor?.document;
 
-    if (
-      !activeDoc ||
-      (activeDoc.uri.scheme !== SCHEME && activeDoc.uri.scheme !== TEMP_SCHEME)
-    ) {
+    if (!activeDoc) {
+      return;
+    }
+
+    let isRelevant =
+      activeDoc.uri.scheme === SCHEME || activeDoc.uri.scheme === TEMP_SCHEME;
+
+    if (!isRelevant && activeDoc.uri.scheme === "file" && tempScriptManager) {
+      const filePath = activeDoc.uri.fsPath;
+      const tempDir = tempScriptManager.getTempDir();
+      isRelevant = filePath.startsWith(tempDir);
+    }
+
+    if (!isRelevant) {
       return;
     }
 
@@ -37,6 +47,12 @@ export function onDidChangeWindowState(
         virtualUri = activeDoc.uri;
       } else if (activeDoc.uri.scheme === TEMP_SCHEME && tempScriptManager) {
         const filePath = tempScriptManager.getTempDir() + activeDoc.uri.path;
+        const uriString = tempScriptManager.getVirtualUri(filePath);
+        if (uriString) {
+          virtualUri = vscode.Uri.parse(uriString);
+        }
+      } else if (activeDoc.uri.scheme === "file" && tempScriptManager) {
+        const filePath = activeDoc.uri.fsPath;
         const uriString = tempScriptManager.getVirtualUri(filePath);
         if (uriString) {
           virtualUri = vscode.Uri.parse(uriString);

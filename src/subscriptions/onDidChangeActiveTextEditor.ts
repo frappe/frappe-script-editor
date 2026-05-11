@@ -23,6 +23,12 @@ export function onDidChangeActiveTextEditor(
       if (uriString) {
         virtualUri = vscode.Uri.parse(uriString);
       }
+    } else if (doc.uri.scheme === "file" && tempScriptManager) {
+      const filePath = doc.uri.fsPath;
+      const uriString = tempScriptManager.getVirtualUri(filePath);
+      if (uriString) {
+        virtualUri = vscode.Uri.parse(uriString);
+      }
     }
 
     if (virtualUri) {

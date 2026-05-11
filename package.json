@@ -1,9 +1,9 @@
 {
   "name": "frappe-script-editor",
   "displayName": "Frappe Script Editor",
-  "description": "Edit JavaScript, Python, HTML, and CSS scripts from Frappe doctypes directly in VS Code with live sync on save.",
+  "description": "Edit JavaScript, Python, HTML, and CSS scripts of Frappe doctypes directly in VS Code with sync on save.",
   "version": "0.1.0",
-  "publisher": "frappe",
+  "publisher": "PratikBadhe",
   "engines": {
     "vscode": "^1.80.0"
   },
@@ -14,6 +14,7 @@
     "onStartupFinished"
   ],
   "main": "./out/extension.js",
+  "icon": "images/frappe-icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/frappe/frappe-script-editor"

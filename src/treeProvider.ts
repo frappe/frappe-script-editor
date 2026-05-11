@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 import type { ScriptRegistry } from "./scriptRegistry";
 import type { ScriptTreeItemData } from "./types";
 import type { TempScriptManager } from "./tempScriptManager";
-import { getCleanTempUri } from "./tempFileSystemProvider";
 
 export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeItemData> {
   private _onDidChangeTreeData = new vscode.EventEmitter<
@@ -133,7 +132,7 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
             ref.siteId,
             ref.displayPath,
           );
-          openUri = getCleanTempUri(tempPath, this.tempManager.getTempDir());
+          openUri = vscode.Uri.file(tempPath);
         }
       }
 

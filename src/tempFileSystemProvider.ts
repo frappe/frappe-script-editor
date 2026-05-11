@@ -110,8 +110,3 @@ export class TempFileSystemProvider implements vscode.FileSystemProvider {
     return new vscode.Disposable(() => {});
   }
 }
-
-export function getCleanTempUri(tempPath: string, tempDir: string): vscode.Uri {
-  const cleanPath = tempPath.replace(tempDir, "");
-  return vscode.Uri.parse(`${TEMP_SCHEME}://${cleanPath}`);
-}

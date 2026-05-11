@@ -20,12 +20,9 @@ export function onDidOpenTextDocument(
 
     try {
       const realPath = tempScriptManager.exportScriptSync(doc.uri, ref, cached);
-      const tempDir = tempScriptManager.getTempDir();
-      const cleanPath = realPath.replace(tempDir, "");
-      const cleanUri = vscode.Uri.parse(`frappe-temp://${cleanPath}`);
       outputChannel.appendLine(`Exported to temp: ${realPath}`);
       vscode.window.setStatusBarMessage(
-        `Frappe: Exported to ${cleanUri.toString()}`,
+        `Frappe: Exported to ${realPath}`,
         5000,
       );
     } catch (err: unknown) {

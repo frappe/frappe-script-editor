@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="images/frappe-icon.png" height="128">
+    <img src="https://raw.githubusercontent.com/frappe/frappe-script-editor/develop/images/frappe-icon.png" height="128">
     <h2>Frappe Script Editor</h2>
     <p>Edit Frappe doctype script fields directly in VS Code with live sync on save</p>
 </div>
