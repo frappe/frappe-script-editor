@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { APP_NAME } from "./utils";
 import { HttpServer } from "./httpServer";
 import { ScriptFileSystem } from "./scriptFileSystem";
 import { ScriptRegistry } from "./scriptRegistry";
@@ -11,10 +12,12 @@ import { onDidOpenTextDocument } from "./subscriptions/onDidOpenTextDocument";
 import { onDidSaveTextDocument } from "./subscriptions/onDidSaveTextDocument";
 import { registerTreeView } from "./subscriptions/registerTreeView";
 import { onDidChangeActiveTextEditor } from "./subscriptions/onDidChangeActiveTextEditor";
-import { setupContextKeys } from "./subscriptions/setupContextKeys";
+import {
+  setupContextKeys,
+  setIsSiteViewContext,
+} from "./subscriptions/setupContextKeys";
 import { registerUriHandler } from "./subscriptions/registerUriHandler";
 import { startHttpServer } from "./subscriptions/startHttpServer";
-import { onDidChangeWindowState } from "./subscriptions/onDidChangeWindowState";
 
 export async function activate(
   context: vscode.ExtensionContext,
@@ -59,15 +62,16 @@ export async function activate(
   // ── Restore saved state ───────────────────────────────────────────────
 
   const savedSiteId = context.workspaceState.get<string>(
-    "frappeScriptEditor.currentSiteId",
+    `${APP_NAME}.currentSiteId`,
   );
 
   if (savedSiteId) {
     await vscode.commands.executeCommand(
       "setContext",
-      "frappeScriptEditor.currentSiteId",
+      `${APP_NAME}.currentSiteId`,
       savedSiteId,
     );
+    await setIsSiteViewContext(true);
   }
 
   // ── Tree view ────────────────────────────────────────────────────────
@@ -105,7 +109,15 @@ export async function activate(
   // ── URI handler ────────────────────────────────────────────────────────
 
   context.subscriptions.push(
-    registerUriHandler(registry, tempScriptManager, siteManager, outputChannel),
+    registerUriHandler(
+      registry,
+      tempScriptManager,
+      siteManager,
+      outputChannel,
+      treeProvider,
+      context,
+      updateViewTitle,
+    ),
   );
 
   // ── HTTP server ────────────────────────────────────────────────────────
@@ -133,12 +145,13 @@ export async function activate(
 
   // ── Window state listener ────────────────────────────────────────────────
 
-  context.subscriptions.push(
-    onDidChangeWindowState(
-      registry,
-      tempScriptManager,
-      treeProvider,
-      outputChannel,
-    ),
-  );
+  // TODO: Handle this in a better way
+  // context.subscriptions.push(
+  //   onDidChangeWindowState(
+  //     registry,
+  //     tempScriptManager,
+  //     treeProvider,
+  //     outputChannel,
+  //   ),
+  // );
 }

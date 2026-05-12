@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import type { CommandContext } from "./types";
 import { APP_NAME } from "../utils";
+import { setIsSiteViewContext } from "../subscriptions/setupContextKeys";
 
 export function registerGoBack(context: CommandContext): vscode.Disposable {
   return vscode.commands.registerCommand(`${APP_NAME}.goBack`, async () => {
@@ -15,6 +16,7 @@ export function registerGoBack(context: CommandContext): vscode.Disposable {
       `${APP_NAME}.currentSiteId`,
       undefined,
     );
+    await setIsSiteViewContext(false);
     context.updateViewTitle();
     context.treeProvider.refresh();
   });

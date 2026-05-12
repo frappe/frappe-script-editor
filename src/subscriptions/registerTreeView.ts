@@ -9,19 +9,20 @@ export function registerTreeView(
   tempScriptManager: TempScriptManager,
   savedSiteId: string | undefined,
   siteManager: SiteManager,
-): { treeView: vscode.TreeView<unknown>; treeProvider: ScriptTreeProvider; updateViewTitle: () => void } {
+): {
+  treeView: vscode.TreeView<unknown>;
+  treeProvider: ScriptTreeProvider;
+  updateViewTitle: () => void;
+} {
   const treeProvider = new ScriptTreeProvider(registry);
   treeProvider.setTempManager(tempScriptManager);
   if (savedSiteId) {
     treeProvider.currentSiteId = savedSiteId;
   }
 
-  const treeView = vscode.window.createTreeView(
-    "frappe-script-editor-scripts",
-    {
-      treeDataProvider: treeProvider,
-    },
-  );
+  const treeView = vscode.window.createTreeView("frappe-script-editor", {
+    treeDataProvider: treeProvider,
+  });
 
   const updateViewTitle = () => {
     if (treeProvider.currentSiteId) {

@@ -32,14 +32,14 @@
     "views": {
       "frappe-script-editor": [
         {
-          "id": "frappe-script-editor-scripts",
+          "id": "frappe-script-editor",
           "name": "Sites"
         }
       ]
     },
     "viewsWelcome": [
       {
-        "view": "frappe-script-editor-scripts",
+        "view": "frappe-script-editor",
         "contents": "No sites configured. Add a site to get started.\n[Add Site](command:frappe-script-editor.addSite)",
         "when": "frappe-script-editor.hasSites == false"
       }
@@ -103,39 +103,39 @@
       "view/title": [
         {
           "command": "frappe-script-editor.goBack",
-          "when": "view == frappe-script-editor-scripts && frappe-script-editor.currentSiteId",
+          "when": "view == frappe-script-editor && frappe-script-editor.isInSiteView",
           "group": "navigation@1"
         },
         {
           "command": "frappe-script-editor.addSite",
-          "when": "view == frappe-script-editor-scripts && !frappe-script-editor.currentSiteId",
+          "when": "view == frappe-script-editor && !frappe-script-editor.isInSiteView",
           "group": "navigation@2"
         },
         {
           "command": "frappe-script-editor.refreshScripts",
-          "when": "view == frappe-script-editor-scripts && frappe-script-editor.currentSiteId",
+          "when": "view == frappe-script-editor && frappe-script-editor.isInSiteView",
           "group": "navigation@3"
         },
         {
           "command": "frappe-script-editor.collapseFolders",
-          "when": "view == frappe-script-editor-scripts && frappe-script-editor.currentSiteId",
+          "when": "view == frappe-script-editor && frappe-script-editor.isInSiteView",
           "group": "navigation@4"
         }
       ],
       "view/item/context": [
         {
           "command": "frappe-script-editor.removeSite",
-          "when": "view == frappe-script-editor-scripts && viewItem == site",
+          "when": "view == frappe-script-editor && viewItem == site",
           "group": "inline"
         },
         {
           "command": "frappe-script-editor.reloadSite",
-          "when": "view == frappe-script-editor-scripts && viewItem == site",
+          "when": "view == frappe-script-editor && viewItem == site",
           "group": "inline"
         },
         {
           "command": "frappe-script-editor.clearSearch",
-          "when": "view == frappe-script-editor-scripts && viewItem == searchNodeActive",
+          "when": "view == frappe-script-editor && viewItem == searchNodeActive",
           "group": "inline"
         }
       ]

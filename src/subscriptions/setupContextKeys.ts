@@ -17,3 +17,13 @@ export function setupContextKeys(siteManager: SiteManager): vscode.Disposable {
     dispose: () => {},
   };
 }
+
+export async function setIsSiteViewContext(
+  isInSiteView: boolean,
+): Promise<void> {
+  await vscode.commands.executeCommand(
+    "setContext",
+    `${APP_NAME}.isInSiteView`,
+    isInSiteView,
+  );
+}

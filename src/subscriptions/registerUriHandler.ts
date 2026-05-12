@@ -9,15 +9,41 @@ import {
 } from "../builderConfig";
 import { findBlockById } from "../scriptFileSystem";
 import type { BlockFieldScript, BlockNode } from "../types";
-import { sanitizeName } from "../utils";
+import { APP_NAME, sanitizeName } from "../utils";
 import type { ScriptReference } from "../types";
+import { setIsSiteViewContext } from "./setupContextKeys";
 
 export function registerUriHandler(
   registry: ScriptRegistry,
   tempScriptManager: TempScriptManager,
   siteManager: SiteManager,
   outputChannel: vscode.OutputChannel,
+  treeProvider: import("../treeProvider").ScriptTreeProvider,
+  context: vscode.ExtensionContext,
+  updateViewTitle: () => void,
 ): vscode.Disposable {
+  const setSiteAsActive = async (siteUrl: string): Promise<void> => {
+    if (!treeProvider.currentSiteId) {
+      const site = siteManager.findSiteByUrl(siteUrl);
+      if (site) {
+        treeProvider.currentSiteId = site.id;
+        await vscode.commands.executeCommand(
+          "setContext",
+          `${APP_NAME}.currentSiteId`,
+          site.id,
+        );
+        await context.workspaceState.update(
+          `${APP_NAME}.currentSiteId`,
+          site.id,
+        );
+        await setIsSiteViewContext(true);
+        updateViewTitle();
+        await registry.loadAll(site.id);
+        treeProvider.refresh();
+      }
+    }
+  };
+
   const openScriptDoc = async (result: {
     uri: vscode.Uri;
     ref: ScriptReference;
@@ -129,6 +155,10 @@ export function registerUriHandler(
       blockField,
     );
 
+    if (!treeProvider.currentSiteId && result) {
+      await setSiteAsActive(siteUrl);
+    }
+
     if (result) {
       await openScriptDoc(result);
       return true;
@@ -148,6 +178,10 @@ export function registerUriHandler(
     );
 
     if (created) {
+      if (!treeProvider.currentSiteId) {
+        await setSiteAsActive(siteUrl);
+      }
+
       await openScriptDoc(created);
       outputChannel.appendLine(
         `Created and opened new script: ${doctype}/${docname}`,

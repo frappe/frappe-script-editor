@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import type { CommandContext, TreeItemSiteId } from "./types";
 import { APP_NAME } from "../utils";
+import { setIsSiteViewContext } from "../subscriptions/setupContextKeys";
 
 export function registerOpenSite(context: CommandContext): vscode.Disposable {
   return vscode.commands.registerCommand(
@@ -17,6 +18,7 @@ export function registerOpenSite(context: CommandContext): vscode.Disposable {
           `${APP_NAME}.currentSiteId`,
           item.siteId,
         );
+        await setIsSiteViewContext(true);
         context.updateViewTitle();
         await context.registry.loadAll(item.siteId);
         context.treeProvider.refresh();

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import type { CommandContext, TreeItemSiteId } from "./types";
 import { APP_NAME } from "../utils";
+import { setIsSiteViewContext } from "../subscriptions/setupContextKeys";
 
 export function registerRemoveSite(context: CommandContext): vscode.Disposable {
   return vscode.commands.registerCommand(
@@ -22,6 +23,7 @@ export function registerRemoveSite(context: CommandContext): vscode.Disposable {
             context.registry.removeSiteTreeData(removedSiteId);
             if (wasCurrentSite) {
               context.treeProvider.currentSiteId = null;
+              await setIsSiteViewContext(false);
             }
             context.treeProvider.refresh();
           }
