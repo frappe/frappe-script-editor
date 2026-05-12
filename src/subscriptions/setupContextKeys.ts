@@ -1,11 +1,12 @@
 import * as vscode from "vscode";
 import type { SiteManager } from "../siteManager";
+import { APP_NAME } from "../utils";
 
 export function setupContextKeys(siteManager: SiteManager): vscode.Disposable {
   const updateHasSitesContext = () => {
     vscode.commands.executeCommand(
       "setContext",
-      "frappeScriptEditor.hasSites",
+      `${APP_NAME}.hasSites`,
       siteManager.getSites().length > 0,
     );
   };

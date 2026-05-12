@@ -7,8 +7,6 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import type { TempScriptManager } from "./tempScriptManager";
 
-export const TEMP_SCHEME = "frappe-temp";
-
 export class TempFileSystemProvider implements vscode.FileSystemProvider {
   private tempManager: TempScriptManager;
   private _onDidChangeFile = new vscode.EventEmitter<

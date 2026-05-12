@@ -40,60 +40,60 @@
     "viewsWelcome": [
       {
         "view": "frappe-script-editor-scripts",
-        "contents": "No sites configured. Add a site to get started.\n[Add Site](command:frappeScriptEditor.addSite)",
-        "when": "frappeScriptEditor.hasSites == false"
+        "contents": "No sites configured. Add a site to get started.\n[Add Site](command:frappe-script-editor.addSite)",
+        "when": "frappe-script-editor.hasSites == false"
       }
     ],
     "commands": [
       {
-        "command": "frappeScriptEditor.addSite",
+        "command": "frappe-script-editor.addSite",
         "title": "Frappe Script Editor: Add Site",
         "shortTitle": "Add Site",
         "icon": "$(add)"
       },
       {
-        "command": "frappeScriptEditor.removeSite",
+        "command": "frappe-script-editor.removeSite",
         "title": "Frappe Script Editor: Remove Site",
         "shortTitle": "Remove Site",
         "icon": "$(trash)"
       },
       {
-        "command": "frappeScriptEditor.reloadSite",
+        "command": "frappe-script-editor.reloadSite",
         "title": "Frappe Script Editor: Reload Site Status",
         "shortTitle": "Reload Site Status",
         "icon": "$(refresh)"
       },
       {
-        "command": "frappeScriptEditor.refreshScripts",
+        "command": "frappe-script-editor.refreshScripts",
         "title": "Frappe Script Editor: Refresh Scripts",
         "shortTitle": "Refresh Scripts",
         "icon": "$(refresh)"
       },
       {
-        "command": "frappeScriptEditor.collapseFolders",
+        "command": "frappe-script-editor.collapseFolders",
         "title": "Frappe Script Editor: Collapse Folders",
         "shortTitle": "Collapse Folders",
         "icon": "$(collapse-all)"
       },
       {
-        "command": "frappeScriptEditor.openSite",
+        "command": "frappe-script-editor.openSite",
         "title": "Frappe Script Editor: Open Site",
         "shortTitle": "Open Site"
       },
       {
-        "command": "frappeScriptEditor.goBack",
+        "command": "frappe-script-editor.goBack",
         "title": "Frappe Script Editor: Go Back",
         "shortTitle": "Go Back",
         "icon": "$(arrow-left)"
       },
       {
-        "command": "frappeScriptEditor.searchBlocks",
+        "command": "frappe-script-editor.searchBlocks",
         "title": "Frappe Script Editor: Search Blocks",
         "shortTitle": "Search",
         "icon": "$(search)"
       },
       {
-        "command": "frappeScriptEditor.clearSearch",
+        "command": "frappe-script-editor.clearSearch",
         "title": "Frappe Script Editor: Clear Search",
         "shortTitle": "Clear Search",
         "icon": "$(clear-all)"
@@ -102,39 +102,39 @@
     "menus": {
       "view/title": [
         {
-          "command": "frappeScriptEditor.goBack",
-          "when": "view == frappe-script-editor-scripts && frappeScriptEditor.currentSiteId",
+          "command": "frappe-script-editor.goBack",
+          "when": "view == frappe-script-editor-scripts && frappe-script-editor.currentSiteId",
           "group": "navigation@1"
         },
         {
-          "command": "frappeScriptEditor.addSite",
-          "when": "view == frappe-script-editor-scripts && !frappeScriptEditor.currentSiteId",
+          "command": "frappe-script-editor.addSite",
+          "when": "view == frappe-script-editor-scripts && !frappe-script-editor.currentSiteId",
           "group": "navigation@2"
         },
         {
-          "command": "frappeScriptEditor.refreshScripts",
-          "when": "view == frappe-script-editor-scripts && frappeScriptEditor.currentSiteId",
+          "command": "frappe-script-editor.refreshScripts",
+          "when": "view == frappe-script-editor-scripts && frappe-script-editor.currentSiteId",
           "group": "navigation@3"
         },
         {
-          "command": "frappeScriptEditor.collapseFolders",
-          "when": "view == frappe-script-editor-scripts && frappeScriptEditor.currentSiteId",
+          "command": "frappe-script-editor.collapseFolders",
+          "when": "view == frappe-script-editor-scripts && frappe-script-editor.currentSiteId",
           "group": "navigation@4"
         }
       ],
       "view/item/context": [
         {
-          "command": "frappeScriptEditor.removeSite",
+          "command": "frappe-script-editor.removeSite",
           "when": "view == frappe-script-editor-scripts && viewItem == site",
           "group": "inline"
         },
         {
-          "command": "frappeScriptEditor.reloadSite",
+          "command": "frappe-script-editor.reloadSite",
           "when": "view == frappe-script-editor-scripts && viewItem == site",
           "group": "inline"
         },
         {
-          "command": "frappeScriptEditor.clearSearch",
+          "command": "frappe-script-editor.clearSearch",
           "when": "view == frappe-script-editor-scripts && viewItem == searchNodeActive",
           "group": "inline"
         }
@@ -147,14 +147,15 @@
   },
   "scripts": {
     "vscode:prepublish": "yarn compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "compile": "esbuild ./src/extension.ts --bundle --outfile=./out/extension.js --external:vscode --format=cjs --platform=node",
+    "watch": "esbuild ./src/extension.ts --bundle --outfile=./out/extension.js --external:vscode --format=cjs --platform=node --watch",
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.80.0",
     "@vscode/vsce": "^3.9.1",
+    "esbuild": "^0.28.0",
     "typescript": "^5.4.0"
   },
   "dependencies": {

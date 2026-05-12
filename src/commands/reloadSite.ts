@@ -1,11 +1,10 @@
 import * as vscode from "vscode";
 import type { CommandContext, TreeItemSiteId } from "./types";
-
-const COMMAND_PREFIX = "frappeScriptEditor.";
+import { APP_NAME } from "../utils";
 
 export function registerReloadSite(context: CommandContext): vscode.Disposable {
   return vscode.commands.registerCommand(
-    `${COMMAND_PREFIX}reloadSite`,
+    `${APP_NAME}.reloadSite`,
     async (item: TreeItemSiteId) => {
       if (item?.siteId) {
         const siteId = item.siteId;

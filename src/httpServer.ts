@@ -48,10 +48,10 @@ export class HttpServer {
     this.server.on("error", (err: NodeJS.ErrnoException) => {
       if (err.code === "EADDRINUSE") {
         this.outputChannel.appendLine(
-          `Port ${this.port} is in use. HTTP server not started. Change the port in settings (frappeScriptEditor.httpServerPort).`,
+          `Port ${this.port} is in use. HTTP server not started.`,
         );
         vscode.window.showWarningMessage(
-          `Frappe Script Editor: Port ${this.port} is in use. Browser integration unavailable. Change the port in settings.`,
+          `Frappe Script Editor: Port ${this.port} is in use. Browser integration unavailable.`,
         );
       } else {
         this.outputChannel.appendLine(`HTTP server error: ${err.message}`);

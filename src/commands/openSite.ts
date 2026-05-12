@@ -1,21 +1,20 @@
 import * as vscode from "vscode";
 import type { CommandContext, TreeItemSiteId } from "./types";
-
-const COMMAND_PREFIX = "frappeScriptEditor.";
+import { APP_NAME } from "../utils";
 
 export function registerOpenSite(context: CommandContext): vscode.Disposable {
   return vscode.commands.registerCommand(
-    `${COMMAND_PREFIX}openSite`,
+    `${APP_NAME}.openSite`,
     async (item: TreeItemSiteId) => {
       if (item?.siteId) {
         context.treeProvider.currentSiteId = item.siteId;
         await vscode.commands.executeCommand(
           "setContext",
-          "frappeScriptEditor.currentSiteId",
+          `${APP_NAME}.currentSiteId`,
           item.siteId,
         );
         await context.ctx.workspaceState.update(
-          "frappeScriptEditor.currentSiteId",
+          `${APP_NAME}.currentSiteId`,
           item.siteId,
         );
         context.updateViewTitle();

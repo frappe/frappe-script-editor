@@ -6,10 +6,10 @@
 import * as vscode from "vscode";
 import { FrappeClient } from "./frappeClient";
 import type { FrappeSiteConfig } from "./types";
-import { generateId, normalizeUrl, extractHostname } from "./utils";
+import { generateId, normalizeUrl, extractHostname, APP_NAME } from "./utils";
 
-const SITES_STORAGE_KEY = "frappeScriptEditor.sites";
-const SECRET_PREFIX = "frappeScriptEditor.secret.";
+const SITES_STORAGE_KEY = `${APP_NAME}.sites`;
+const SECRET_PREFIX = `${APP_NAME}.secret.`;
 
 export class SiteManager {
   private _onDidChangeSites = new vscode.EventEmitter<void>();

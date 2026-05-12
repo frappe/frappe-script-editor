@@ -1,11 +1,10 @@
 import * as vscode from "vscode";
 import type { CommandContext, TreeItemSiteId } from "./types";
-
-const COMMAND_PREFIX = "frappeScriptEditor.";
+import { APP_NAME } from "../utils";
 
 export function registerRemoveSite(context: CommandContext): vscode.Disposable {
   return vscode.commands.registerCommand(
-    `${COMMAND_PREFIX}removeSite`,
+    `${APP_NAME}.removeSite`,
     async (item: TreeItemSiteId) => {
       if (item?.siteId) {
         const site = context.siteManager.getSite(item.siteId);
@@ -17,7 +16,8 @@ export function registerRemoveSite(context: CommandContext): vscode.Disposable {
           );
           if (confirm === "Remove") {
             const removedSiteId = item.siteId;
-            const wasCurrentSite = context.treeProvider.currentSiteId === removedSiteId;
+            const wasCurrentSite =
+              context.treeProvider.currentSiteId === removedSiteId;
             await context.siteManager.removeSite(removedSiteId);
             context.registry.removeSiteTreeData(removedSiteId);
             if (wasCurrentSite) {

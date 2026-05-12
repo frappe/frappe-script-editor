@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import type { ScriptRegistry } from "./scriptRegistry";
 import type { ScriptTreeItemData } from "./types";
 import type { TempScriptManager } from "./tempScriptManager";
+import { APP_NAME } from "./utils";
 
 export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeItemData> {
   private _onDidChangeTreeData = new vscode.EventEmitter<
@@ -74,7 +75,7 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
         case "searchNode":
           treeItem.iconPath = new vscode.ThemeIcon("search");
           treeItem.command = {
-            command: "frappeScriptEditor.searchBlocks",
+            command: `${APP_NAME}.searchBlocks`,
             title: "Search Blocks",
           };
           break;
@@ -87,7 +88,7 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
 
     if (element.type === "site" && !this.currentSiteId) {
       treeItem.command = {
-        command: "frappeScriptEditor.openSite",
+        command: `${APP_NAME}.openSite`,
         title: "Open Site",
         arguments: [{ siteId: element.siteId }],
       };

@@ -1,11 +1,12 @@
 import * as vscode from "vscode";
 import type { CommandContext } from "./types";
+import { APP_NAME } from "../utils";
 
-const COMMAND_PREFIX = "frappeScriptEditor.";
-
-export function registerSearchBlocks(context: CommandContext): vscode.Disposable {
+export function registerSearchBlocks(
+  context: CommandContext,
+): vscode.Disposable {
   return vscode.commands.registerCommand(
-    `${COMMAND_PREFIX}searchBlocks`,
+    `${APP_NAME}.searchBlocks`,
     async () => {
       const query = await vscode.window.showInputBox({
         prompt: "Enter block name to search",
@@ -18,7 +19,7 @@ export function registerSearchBlocks(context: CommandContext): vscode.Disposable
         context.treeProvider.refresh();
         vscode.commands.executeCommand(
           "setContext",
-          "frappeScriptEditor.hasSearchQuery",
+          `${APP_NAME}.hasSearchQuery`,
           !!context.treeProvider.searchQuery,
         );
       }

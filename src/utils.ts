@@ -1,3 +1,7 @@
+export const APP_NAME = "frappe-script-editor";
+
+export const TEMP_SCHEME = "frappe-temp";
+
 export function sanitizeName(name: string): string {
   return name.replace(/[/\\?%*:|"<>]/g, "_").trim();
 }

@@ -1,13 +1,12 @@
 import * as vscode from "vscode";
 import type { CommandContext } from "./types";
-
-const COMMAND_PREFIX = "frappeScriptEditor.";
+import { APP_NAME } from "../utils";
 
 export function registerRefreshScripts(
   context: CommandContext,
 ): vscode.Disposable {
   return vscode.commands.registerCommand(
-    `${COMMAND_PREFIX}refreshScripts`,
+    `${APP_NAME}.refreshScripts`,
     async () => {
       const currentSiteId = context.treeProvider.currentSiteId;
       if (currentSiteId) {
