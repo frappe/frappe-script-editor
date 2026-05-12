@@ -1,17 +1,24 @@
 <div align="center">
     <img src="https://raw.githubusercontent.com/frappe/frappe-script-editor/develop/images/frappe-icon.png" height="128">
     <h2>Frappe Script Editor</h2>
-    <p>Edit Frappe doctype script fields directly in VS Code with live sync on save</p>
+    <p>Edit Frappe doctype script fields directly in VS Code with data sync on save</p>
 </div>
 
 ## Features
 
 - **Edit Scripts in VS Code:** — Edit JavaScript, Python, HTML, and CSS scripts of Frappe doctypes
-- **Live Sync on Save** — Changes automatically sync back to your Frappe site when you save
+- **Sync on Save** — Changes automatically sync back to your Frappe site when you save
 - **Multi-Site Support** — Manage and switch between multiple Frappe sites
 
 
 ## Installation
+
+### From VSCode Marketplace
+https://marketplace.visualstudio.com/items?itemName=PratikBadhe.frappe-script-editor
+
+### From Source
+
+#### 1. Clone and Build
 
 ```bash
 git clone https://github.com/frappe/frappe-script-editor.git
@@ -19,12 +26,32 @@ cd frappe-script-editor
 yarn install
 yarn compile
 ```
-Then copy the extension folder to your VS Code extensions directory.
+
+#### 2. Install Extension
+
+Choose **one** of the following methods:
+
+**Method A: VS Code Command Palette (Recommended)**
+
+1. Open VS Code
+2. Press `Cmd+Shift+P` (macOS) or `Ctrl+Shift+P` (Windows/Linux) to open the **Command Palette**
+3. Type `Developer: Install Extension from Location` and select it
+4. Navigate to and select the `frappe-script-editor` folder
+5. Restart VS Code
+
+**Method B: Manual Installation**
+
+1. Copy the extension folder to your VS Code extensions directory:
 
 ```bash
+# For macOS/Linux
 cp -r frappe-script-editor ~/.vscode/extensions
-# Restart VS Code
+
+# For Windows
+xcopy /e /i frappe-script-editor %USERPROFILE%\.vscode\extensions\frappe-script-editor
 ```
+
+2. Restart VS Code
 
 
 ## Setup
