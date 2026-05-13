@@ -155,7 +155,6 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
               "Saving now will overwrite those changes.",
             { modal: true },
             "Force Save",
-            "Cancel",
           );
 
           if (choice !== "Force Save") {
