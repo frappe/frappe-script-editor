@@ -78,6 +78,7 @@ export interface ScriptTreeItemData {
 
   contextValue?: string;
   tooltip?: string;
+  description?: string;
   iconId?: string;
 
   collapsibleState?: vscode.TreeItemCollapsibleState;
@@ -112,6 +113,7 @@ export type FrappePageDoc = {
   name: string;
   page_name: string;
   page_title: string | null;
+  route: string;
 } & PageDocFieldTypes;
 
 export type FrappeClientScriptDoc = {

@@ -643,7 +643,6 @@ export class ScriptRegistry {
     doc: FrappePageDoc,
     client: FrappeClient,
   ): Promise<ScriptTreeItemData> {
-    const pageName = sanitizeName(doc.page_name || doc.name);
     const pageLabel = doc.page_title || doc.page_name || doc.name;
     const pageTitleSlug = sanitizeName(pageLabel);
 
@@ -653,6 +652,7 @@ export class ScriptRegistry {
       siteId,
       children: [],
       tooltip: `${TOOLTIPS.ROUTE_PREFIX}${doc.name}`,
+      description: `${doc.route} - ${doc.page_name}`,
       iconId: "file-code",
     };
 

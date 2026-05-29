@@ -82,6 +82,10 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
       }
     }
 
+    if (element.description) {
+      treeItem.description = element.description;
+    }
+
     if (element.tooltip) {
       treeItem.tooltip = element.tooltip;
     }
