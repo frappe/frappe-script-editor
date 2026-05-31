@@ -2,7 +2,7 @@
   "name": "frappe-script-editor",
   "displayName": "Frappe Script Editor",
   "description": "Edit JavaScript, Python, HTML, and CSS scripts of Frappe doctypes directly in VS Code with sync on save.",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "publisher": "PratikBadhe",
   "engines": {
     "vscode": "^1.80.0"
