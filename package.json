@@ -160,7 +160,8 @@
     "vscode:prepublish": "yarn compile",
     "compile": "esbuild ./src/extension.ts --bundle --outfile=./out/extension.js --external:vscode --format=cjs --platform=node",
     "watch": "esbuild ./src/extension.ts --bundle --outfile=./out/extension.js --external:vscode --format=cjs --platform=node --watch",
-    "lint": "eslint src --ext ts"
+    "lint": "eslint src --ext ts",
+    "publish": "vsce publish"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
