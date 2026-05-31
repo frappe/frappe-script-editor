@@ -5,3 +5,7 @@ out/**/*.map
 node_modules/**
 .gitignore
 tsconfig.json
+.claude/**
+.code-review-graph/**
+.kilo/**
+codedb.snapshot
