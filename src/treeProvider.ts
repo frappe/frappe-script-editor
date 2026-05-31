@@ -3,6 +3,7 @@ import type { ScriptRegistry } from "./scriptRegistry";
 import type { ScriptTreeItemData } from "./types";
 import type { TempScriptManager } from "./tempScriptManager";
 import { APP_NAME } from "./utils";
+import { DEFAULT_PAGE_LIMIT } from "./builderConfig";
 
 export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeItemData> {
   private _onDidChangeTreeData = new vscode.EventEmitter<
@@ -77,6 +78,14 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
           treeItem.command = {
             command: `${APP_NAME}.searchBlocks`,
             title: "Search Blocks",
+          };
+          break;
+        case "showMorePages":
+          treeItem.iconPath = new vscode.ThemeIcon("ellipsis");
+          treeItem.command = {
+            command: `${APP_NAME}.managePagesVisibility`,
+            title: "Manage Pages Visibility",
+            arguments: [element.siteId],
           };
           break;
       }
@@ -212,6 +221,7 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
 
         let children = siteNode?.children || [];
 
+        children = this.applyPageLimit(children);
         if (this.searchQuery) {
           children = this.filterTreeData(children, this.searchQuery);
         }
@@ -234,6 +244,45 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
     }
 
     return element.children || [];
+  }
+
+  private applyPageLimit(children: ScriptTreeItemData[]): ScriptTreeItemData[] {
+    if (!this.currentSiteId) return children;
+
+    const hiddenNames = this.registry.getHiddenPageNames(this.currentSiteId);
+
+    const nonPageChildren = children.filter((c) => c.type !== "page");
+    const pageChildren = children.filter((c) => c.type === "page");
+
+    let visiblePages: ScriptTreeItemData[];
+    let hiddenCount: number;
+
+    if (hiddenNames.size > 0) {
+      // User has explicitly configured visibility
+      visiblePages = pageChildren.filter(
+        (p) => !hiddenNames.has(p.docname ?? p.label),
+      );
+      hiddenCount = pageChildren.length - visiblePages.length;
+    } else {
+      // Default: show first DEFAULT_PAGE_LIMIT pages
+      visiblePages = pageChildren.slice(0, DEFAULT_PAGE_LIMIT);
+      hiddenCount = Math.max(0, pageChildren.length - DEFAULT_PAGE_LIMIT);
+    }
+
+    const result = [...nonPageChildren, ...visiblePages];
+
+    if (hiddenCount > 0) {
+      const showMoreNode: ScriptTreeItemData = {
+        type: "showMorePages",
+        label: `Show ${hiddenCount} hidden page${hiddenCount === 1 ? "" : "s"}`,
+        siteId: this.currentSiteId,
+        children: [],
+        contextValue: "showMorePages",
+      };
+      result.push(showMoreNode);
+    }
+
+    return result;
   }
 
   private filterTreeData(

@@ -62,7 +62,8 @@ export type TreeItemType =
   | "pageBlocksFolder"
   | "blockFolder"
   | "scriptFile"
-  | "searchNode";
+  | "searchNode"
+  | "showMorePages";
 
 export interface ScriptTreeItemData {
   type: TreeItemType;
@@ -80,6 +81,7 @@ export interface ScriptTreeItemData {
   tooltip?: string;
   description?: string;
   iconId?: string;
+  docname?: string;
 
   collapsibleState?: vscode.TreeItemCollapsibleState;
 

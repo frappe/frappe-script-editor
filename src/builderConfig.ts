@@ -1,8 +1,11 @@
+export const DEFAULT_PAGE_LIMIT = 15;
+
 export const BUILDER_DOCTYPES = {
   SETTINGS: "Builder Settings",
   CLIENT_SCRIPT: "Builder Client Script",
   PAGE: "Builder Page",
 } as const;
+
 
 export const SETTINGS_FIELDS = {
   SCRIPT: "script",

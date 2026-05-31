@@ -58,6 +58,9 @@ export class ScriptRegistry {
 
   private siteManager: SiteManager;
 
+  /** Pages hidden from the tree view, keyed by siteId → Set of page docnames */
+  private hiddenPageNames = new Map<string, Set<string>>();
+
   constructor(siteManager: SiteManager) {
     this.siteManager = siteManager;
   }
@@ -96,6 +99,22 @@ export class ScriptRegistry {
 
   setCachedContentSync(uriString: string, content: string): void {
     this.contentCache.set(uriString, content);
+  }
+
+  /** Returns all page nodes for a site (regardless of visibility). */
+  getAllPageNodes(siteId: string): ScriptTreeItemData[] {
+    const siteNode = this.treeData.get(siteId);
+    if (!siteNode?.children) return [];
+    return siteNode.children.filter((c) => c.type === "page");
+  }
+
+  getHiddenPageNames(siteId: string): Set<string> {
+    return this.hiddenPageNames.get(siteId) ?? new Set();
+  }
+
+  setHiddenPageNames(siteId: string, hidden: Set<string>): void {
+    this.hiddenPageNames.set(siteId, hidden);
+    this._onDidChange.fire();
   }
 
   /**
@@ -174,7 +193,7 @@ export class ScriptRegistry {
     if (siteNode?.children) {
       for (const pageNode of siteNode.children) {
         if (pageNode.type !== "page") continue;
-        if (pageNode.tooltip !== `${TOOLTIPS.ROUTE_PREFIX}${docname}`) continue;
+        if (pageNode.docname !== docname) continue;
 
         let blocksFolder = pageNode.children?.find(
           (c) => c.type === "pageBlocksFolder",
@@ -270,7 +289,7 @@ export class ScriptRegistry {
     if (siteNode?.children) {
       for (const pageNode of siteNode.children) {
         if (pageNode.type !== "page") continue;
-        if (pageNode.tooltip !== `${TOOLTIPS.ROUTE_PREFIX}${docname}`) continue;
+        if (pageNode.docname !== docname) continue;
 
         if (pageNode.children) {
           pageNode.children.push({
@@ -651,8 +670,9 @@ export class ScriptRegistry {
       label: pageLabel,
       siteId,
       children: [],
-      tooltip: `${TOOLTIPS.ROUTE_PREFIX}${doc.name}`,
-      description: `${doc.route} - ${doc.page_name}`,
+      tooltip: doc.name,
+      docname: doc.name,
+      description: doc.route,
       iconId: "file-code",
     };
 
@@ -786,10 +806,7 @@ export class ScriptRegistry {
     ] as const) {
       const value = doc[field] as string | null;
 
-      const displayName =
-        field === PAGE_FIELDS.HEAD_HTML
-          ? PAGE_SCRIPT_FIELDS[field].label
-          : PAGE_SCRIPT_FIELDS[field].label;
+      const displayName = PAGE_SCRIPT_FIELDS[field].label;
       const displayPath = `${pageTitleSlug}/${displayName}.html`;
       const uri = vscode.Uri.parse(`${SCHEME}:///${siteId}/${displayPath}`);
 

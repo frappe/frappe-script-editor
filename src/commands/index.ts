@@ -9,6 +9,7 @@ import { registerRefreshScripts } from "./refreshScripts";
 import { registerCollapseFolders } from "./collapseFolders";
 import { registerSearchBlocks } from "./searchBlocks";
 import { registerClearSearch } from "./clearSearch";
+import { registerManagePagesVisibility } from "./managePagesVisibility";
 
 export type { CommandContext, TreeItemSiteId } from "./types";
 
@@ -25,5 +26,6 @@ export function registerAllCommands(
     registerCollapseFolders(),
     registerSearchBlocks(context),
     registerClearSearch(context),
+    registerManagePagesVisibility(context),
   ];
 }

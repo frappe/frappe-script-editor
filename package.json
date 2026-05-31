@@ -97,6 +97,12 @@
         "title": "Frappe Script Editor: Clear Search",
         "shortTitle": "Clear Search",
         "icon": "$(clear-all)"
+      },
+      {
+        "command": "frappe-script-editor.managePagesVisibility",
+        "title": "Frappe Script Editor: Manage Pages Visibility",
+        "shortTitle": "Manage Pages",
+        "icon": "$(eye)"
       }
     ],
     "menus": {
@@ -109,6 +115,11 @@
         {
           "command": "frappe-script-editor.addSite",
           "when": "view == frappe-script-editor && !frappe-script-editor.isInSiteView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "frappe-script-editor.managePagesVisibility",
+          "when": "view == frappe-script-editor && frappe-script-editor.isInSiteView",
           "group": "navigation@2"
         },
         {
