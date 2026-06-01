@@ -101,6 +101,24 @@ export class ScriptRegistry {
     this.contentCache.set(uriString, content);
   }
 
+  clearCachedContent(uri: vscode.Uri): void {
+    this.contentCache.delete(uri.toString());
+  }
+
+  getUrisByDoc(siteId: string, doctype: string, docname: string): vscode.Uri[] {
+    const result: vscode.Uri[] = [];
+    for (const [uriStr, ref] of this.registry.entries()) {
+      if (
+        ref.siteId === siteId &&
+        ref.location.doctype === doctype &&
+        ref.location.docname === docname
+      ) {
+        result.push(vscode.Uri.parse(uriStr));
+      }
+    }
+    return result;
+  }
+
   /** Returns all page nodes for a site (regardless of visibility). */
   getAllPageNodes(siteId: string): ScriptTreeItemData[] {
     const siteNode = this.treeData.get(siteId);
@@ -570,6 +588,7 @@ export class ScriptRegistry {
     // ── Builder Settings (always at top) ──────────────────────────────────
     try {
       const settings = await client.getBuilderSettings();
+      this.siteManager.subscribeDoc(siteId, BUILDER_DOCTYPES.SETTINGS, BUILDER_DOCTYPES.SETTINGS);
       const settingsNode: ScriptTreeItemData = {
         type: "settings",
         label: BUILDER_DOCTYPES.SETTINGS,
@@ -634,6 +653,7 @@ export class ScriptRegistry {
       for (const pageSummary of pages) {
         try {
           const pageDoc = await client.getPageDoc(pageSummary.name);
+          this.siteManager.subscribeDoc(siteId, BUILDER_DOCTYPES.PAGE, pageDoc.name);
           const pageNode = await this.buildPageNode(siteId, pageDoc, client);
           if (siteNode.children) {
             siteNode.children.push(pageNode);
@@ -689,6 +709,7 @@ export class ScriptRegistry {
       for (const csRow of doc.client_scripts) {
         try {
           const csDoc = await client.getClientScript(csRow.builder_script);
+          this.siteManager.subscribeDoc(siteId, BUILDER_DOCTYPES.CLIENT_SCRIPT, csDoc.name);
           const ext = csDoc.script_type === "CSS" ? ".css" : ".js";
           const csName = sanitizeName(csDoc.name);
           const displayPath = `${pageTitleSlug}/client scripts/${csName}${ext}`;

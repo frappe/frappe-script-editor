@@ -205,6 +205,12 @@ export class ScriptFileSystem implements vscode.FileSystemProvider {
     }
   }
 
+  notifyExternalChange(uris: vscode.Uri[]): void {
+    this._onDidChangeFile.fire(
+      uris.map((uri) => ({ type: vscode.FileChangeType.Changed, uri })),
+    );
+  }
+
   // ── Unsupported operations ────────────────────────────────────────────
 
   createDirectory(_uri: vscode.Uri): void {

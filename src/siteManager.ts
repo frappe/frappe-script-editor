@@ -5,6 +5,7 @@
 
 import * as vscode from "vscode";
 import { FrappeClient } from "./frappeClient";
+import { RealtimeClient, type DocUpdateEvent } from "./realtimeClient";
 import type { FrappeSiteConfig } from "./types";
 import { generateId, normalizeUrl, extractHostname, APP_NAME } from "./utils";
 
@@ -15,11 +16,15 @@ export class SiteManager {
   private _onDidChangeSites = new vscode.EventEmitter<void>();
   readonly onDidChangeSites = this._onDidChangeSites.event;
 
+  private _onDocUpdate = new vscode.EventEmitter<DocUpdateEvent & { siteId: string }>();
+  readonly onDocUpdate = this._onDocUpdate.event;
+
   private sites: FrappeSiteConfig[] = [];
   private globalState: vscode.Memento;
   private secrets: vscode.SecretStorage;
 
   private clients = new Map<string, FrappeClient>();
+  private realtimeClients = new Map<string, RealtimeClient>();
 
   constructor(context: vscode.ExtensionContext) {
     this.globalState = context.globalState;
@@ -86,6 +91,7 @@ export class SiteManager {
     };
 
     await this.secrets.store(SECRET_PREFIX + site.id, apiSecret);
+    this.connectRealtime(site.id, url, site.name, apiKey, apiSecret);
 
     this.sites.push(site);
     this.clients.set(site.id, client);
@@ -97,6 +103,8 @@ export class SiteManager {
 
   async removeSite(id: string): Promise<void> {
     this.sites = this.sites.filter((s) => s.id !== id);
+    this.realtimeClients.get(id)?.disconnect();
+    this.realtimeClients.delete(id);
     this.clients.delete(id);
     await this.secrets.delete(SECRET_PREFIX + id);
     await this.persistSites();
@@ -136,7 +144,30 @@ export class SiteManager {
 
     const client = new FrappeClient(site.url, site.apiKey, secret);
     this.clients.set(siteId, client);
+    this.connectRealtime(siteId, site.url, site.name, site.apiKey, secret);
     return client;
+  }
+
+  subscribeDoc(siteId: string, doctype: string, docname: string): void {
+    this.realtimeClients.get(siteId)?.docSubscribe(doctype, docname);
+  }
+
+  private connectRealtime(
+    id: string,
+    url: string,
+    siteName: string,
+    apiKey: string,
+    apiSecret: string,
+  ): void {
+    if (this.realtimeClients.has(id)) {
+      return;
+    }
+    const client = new RealtimeClient(url, siteName, apiKey, apiSecret);
+    client.addDocUpdateHandler((data) => {
+      this._onDocUpdate.fire({ siteId: id, ...data });
+    });
+    client.connect();
+    this.realtimeClients.set(id, client);
   }
 
   // ── Persistence ─────────────────────────────────────────────────────────

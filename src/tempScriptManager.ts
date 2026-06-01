@@ -91,6 +91,13 @@ export class TempScriptManager {
     return this.virtualUriMap.get(filePath);
   }
 
+  updateTempFile(siteId: string, displayPath: string, content: string): boolean {
+    const tempPath = this.getTempPath(siteId, displayPath);
+    if (!fs.existsSync(tempPath)) return false;
+    fs.writeFileSync(tempPath, content, "utf8");
+    return true;
+  }
+
   getTempDir(): string {
     return this.tempDir;
   }

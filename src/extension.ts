@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
 import { APP_NAME } from "./utils";
-import { HttpServer } from "./httpServer";
 import { ScriptFileSystem } from "./scriptFileSystem";
 import { ScriptRegistry } from "./scriptRegistry";
 import { SiteManager } from "./siteManager";
@@ -105,6 +104,30 @@ export async function activate(
   };
 
   context.subscriptions.push(...registerAllCommands(commandContext));
+
+  // ── Realtime doc updates ───────────────────────────────────────────────
+
+  context.subscriptions.push(
+    siteManager.onDocUpdate(async ({ siteId, doctype, name }) => {
+      const uris = registry.getUrisByDoc(siteId, doctype, name);
+      if (uris.length === 0) return;
+
+      for (const uri of uris) {
+        registry.clearCachedContent(uri);
+
+        const ref = registry.getReference(uri);
+        if (!ref) continue;
+
+        try {
+          const bytes = await fileSystem.readFile(uri);
+          const text = Buffer.from(bytes).toString("utf8");
+          tempScriptManager.updateTempFile(ref.siteId, ref.displayPath, text);
+        } catch {
+          // ignore fetch errors silently
+        }
+      }
+    }),
+  );
 
   // ── URI handler ────────────────────────────────────────────────────────
 
