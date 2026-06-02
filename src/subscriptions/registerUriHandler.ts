@@ -4,6 +4,7 @@ import type { TempScriptManager } from "../tempScriptManager";
 import type { SiteManager } from "../siteManager";
 import {
   BUILDER_DOCTYPES,
+  DEFAULT_PAGE_LIMIT,
   ERROR_MESSAGES,
   PAGE_SCRIPT_FIELDS,
 } from "../builderConfig";
@@ -19,6 +20,7 @@ export function registerUriHandler(
   siteManager: SiteManager,
   outputChannel: vscode.OutputChannel,
   treeProvider: import("../treeProvider").ScriptTreeProvider,
+  treeView: vscode.TreeView<unknown>,
   context: vscode.ExtensionContext,
   updateViewTitle: () => void,
 ): vscode.Disposable {
@@ -61,6 +63,11 @@ export function registerUriHandler(
     } else {
       const doc = await vscode.workspace.openTextDocument(result.uri);
       await vscode.window.showTextDocument(doc, { preview: false });
+    }
+
+    const node = treeProvider.findNodeByUri(result.uri);
+    if (node) {
+      treeView.reveal(node, { select: true, focus: false, expand: true });
     }
   };
 
@@ -138,6 +145,31 @@ export function registerUriHandler(
     return null;
   };
 
+  const ensurePageIsVisible = (siteId: string, docname: string): void => {
+    const hiddenNames = new Set(registry.getHiddenPageNames(siteId));
+    const allPages = registry.getAllPageNodes(siteId);
+
+    if (hiddenNames.size > 0) {
+      if (hiddenNames.has(docname)) {
+        hiddenNames.delete(docname);
+        registry.setHiddenPageNames(siteId, hiddenNames);
+        treeProvider.refresh();
+      }
+    } else {
+      const pageIndex = allPages.findIndex(
+        (p) => (p.docname ?? p.label) === docname,
+      );
+      if (pageIndex >= DEFAULT_PAGE_LIMIT) {
+        const newHidden = new Set<string>(
+          allPages.slice(DEFAULT_PAGE_LIMIT).map((p) => p.docname ?? p.label),
+        );
+        newHidden.delete(docname);
+        registry.setHiddenPageNames(siteId, newHidden);
+        treeProvider.refresh();
+      }
+    }
+  };
+
   const findAndOpenScript = async (
     siteUrl: string,
     doctype: string,
@@ -160,6 +192,9 @@ export function registerUriHandler(
     }
 
     if (result) {
+      if (doctype === BUILDER_DOCTYPES.PAGE && treeProvider.currentSiteId) {
+        ensurePageIsVisible(treeProvider.currentSiteId, docname);
+      }
       await openScriptDoc(result);
       return true;
     }
@@ -182,6 +217,9 @@ export function registerUriHandler(
         await setSiteAsActive(siteUrl);
       }
 
+      if (doctype === BUILDER_DOCTYPES.PAGE && treeProvider.currentSiteId) {
+        ensurePageIsVisible(treeProvider.currentSiteId, docname);
+      }
       await openScriptDoc(created);
       outputChannel.appendLine(
         `Created and opened new script: ${doctype}/${docname}`,

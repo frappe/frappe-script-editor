@@ -274,7 +274,7 @@ export class ScriptTreeProvider implements vscode.TreeDataProvider<ScriptTreeIte
     if (hiddenCount > 0) {
       const showMoreNode: ScriptTreeItemData = {
         type: "showMorePages",
-        label: `Show ${hiddenCount} hidden page${hiddenCount === 1 ? "" : "s"}`,
+        label: "Show more pages",
         siteId: this.currentSiteId,
         children: [],
         contextValue: "showMorePages",

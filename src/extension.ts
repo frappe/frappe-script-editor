@@ -138,6 +138,7 @@ export async function activate(
       siteManager,
       outputChannel,
       treeProvider,
+      treeView,
       context,
       updateViewTitle,
     ),
@@ -165,16 +166,4 @@ export async function activate(
   outputChannel.appendLine(
     `Initialized with ${sites.length} configured site(s).`,
   );
-
-  // ── Window state listener ────────────────────────────────────────────────
-
-  // TODO: Handle this in a better way
-  // context.subscriptions.push(
-  //   onDidChangeWindowState(
-  //     registry,
-  //     tempScriptManager,
-  //     treeProvider,
-  //     outputChannel,
-  //   ),
-  // );
 }
